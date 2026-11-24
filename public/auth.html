@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login Lobby</title>
+    <style>
+      body {
+        color: #172033;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 32px;
+        background: #f7f8fb;
+      }
+
+      main {
+        max-width: 420px;
+        margin: 0 auto;
+        background: #fff;
+        border: 1px solid #dce2ee;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 16px 40px rgba(23, 32, 51, 0.08);
+      }
+
+      h1 {
+        font-size: 22px;
+        margin: 0 0 12px;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin: 14px 0 6px;
+      }
+
+      input,
+      button {
+        box-sizing: border-box;
+        font: inherit;
+        width: 100%;
+      }
+
+      input {
+        border: 1px solid #bcc7d8;
+        border-radius: 8px;
+        padding: 10px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 700;
+        margin-top: 14px;
+        padding: 11px 14px;
+      }
+
+      .primary {
+        background: #2347ff;
+        color: #fff;
+      }
+
+      .secondary {
+        background: #e9edf7;
+        color: #172033;
+      }
+
+      #status {
+        color: #40516d;
+        font-size: 14px;
+        margin-top: 16px;
+        min-height: 20px;
+      }
+
+      .error {
+        color: #b42318;
+      }
+    </style>
+    <script src="/firebase-config.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Login para Ley Lobby</h1>
+      <p>Inicia sesion para entregar un token temporal al bookmarklet.</p>
+
+      <button id="googleLogin" class="primary" type="button">Entrar con Google</button>
+
+      <form id="emailForm">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email">
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password">
+
+        <button class="secondary" type="submit">Entrar con email</button>
+      </form>
+
+      <p id="status">Esperando login...</p>
+    </main>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+      import {
+        getAuth,
+        GoogleAuthProvider,
+        onAuthStateChanged,
+        signInWithEmailAndPassword,
+        signInWithPopup
+      } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+      const status = document.querySelector("#status");
+      const params = new URLSearchParams(window.location.search);
+      const openerOrigin = params.get("openerOrigin") || "";
+      const allowedOpenerOrigins = new Set([
+        "https://www.leylobby.gob.cl",
+        "https://leylobby.gob.cl",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000"
+      ]);
+
+      function setStatus(message, isError) {
+        status.textContent = message;
+        status.className = isError ? "error" : "";
+      }
+
+      function assertConfig() {
+        if (!window.LOBBY_FIREBASE_CONFIG) {
+          throw new Error("Falta public/firebase-config.js");
+        }
+      }
+
+      async function returnToken(user) {
+        if (!window.opener) {
+          setStatus("Login correcto. Vuelve a la pagina de Ley Lobby.");
+          return;
+        }
+
+        if (!allowedOpenerOrigins.has(openerOrigin)) {
+          setStatus("Origen del bookmarklet no autorizado.", true);
+          return;
+        }
+
+        const idToken = await user.getIdToken();
+        window.opener.postMessage({
+          type: "lobbyFirebaseAuth",
+          idToken,
+          email: user.email || null
+        }, openerOrigin);
+        setStatus("Login correcto. Cerrando ventana...");
+        window.setTimeout(() => window.close(), 500);
+      }
+
+      try {
+        assertConfig();
+        const app = initializeApp(window.LOBBY_FIREBASE_CONFIG);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        document.querySelector("#googleLogin").addEventListener("click", async () => {
+          try {
+            setStatus("Abriendo login de Google...");
+            const result = await signInWithPopup(auth, provider);
+            await returnToken(result.user);
+          } catch (error) {
+            setStatus(error.message || "No se pudo iniciar sesion.", true);
+          }
+        });
+
+        document.querySelector("#emailForm").addEventListener("submit", async (event) => {
+          event.preventDefault();
+          try {
+            setStatus("Validando credenciales...");
+            const email = document.querySelector("#email").value.trim();
+            const password = document.querySelector("#password").value;
+            const result = await signInWithEmailAndPassword(auth, email, password);
+            await returnToken(result.user);
+          } catch (error) {
+            setStatus(error.message || "No se pudo iniciar sesion.", true);
+          }
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            await returnToken(user);
+          }
+        });
+      } catch (error) {
+        setStatus(error.message || "Error de configuracion.", true);
+      }
+    </script>
+  </body>
+</html>

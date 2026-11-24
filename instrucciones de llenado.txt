@@ -1,0 +1,311 @@
+INSTRUCCIONES DE LLENADO - PLANTILLA USUARIOS LEY LOBBY
+
+Archivo Excel: plantilla_usuarios_lobby.xlsx
+
+Objetivo del archivo
+Este Excel sirve como base para generar el JSON que se pega en el bookmarklet de Ley Lobby.
+
+El bookmarklet permite elegir:
+1. Quien sera el solicitante de la audiencia.
+2. Que usuario se cargara en el modal "Nuevo asistentes".
+
+Por eso, todos los usuarios deben estar en la hoja "usuarios". Una misma persona puede ser solicitante y tambien asistente.
+
+
+HOJAS DEL EXCEL
+
+1. README
+Contiene una explicacion general de la plantilla.
+
+2. solicitud
+Contiene los datos comunes de la peticion de audiencia.
+Normalmente se completa solo una fila.
+
+3. usuarios
+Contiene todas las personas que podran usarse como solicitante o como asistente.
+Cada fila es una persona.
+
+4. listas
+Contiene valores permitidos para algunos campos. No es necesario modificarla.
+
+
+HOJA "solicitud"
+
+id_solicitud
+Identificador interno opcional.
+Sirve para ordenar o distinguir solicitudes.
+Ejemplo: SOL-001.
+
+institucion
+Nombre de la institucion elegida en la pagina de Ley Lobby.
+Este dato es solo de referencia. El bookmarklet no selecciona la institucion automaticamente.
+Ejemplo: Subsecretaria del Interior.
+
+cargo
+Cargo o autoridad a quien se pedira la audiencia.
+Puede escribirse como aparece en el selector de la pagina o con texto parcial.
+Ejemplos:
+Subsecretario
+Ministro del Interior
+Jefa de Gabinete
+
+asistira_solicitante
+Indica si el solicitante asistira a la audiencia.
+Valores permitidos:
+MANUAL: recomendado. La persona decide manualmente en la pagina.
+SI: el solicitante asistira.
+NO: el solicitante no asistira.
+
+Recomendacion: usar MANUAL para evitar que la pagina abra automaticamente el modal antes de revisar.
+
+materia_1_actos_administrativos
+Marcar SI si la audiencia trata sobre actos administrativos, proyectos de ley, leyes o decisiones de sujetos pasivos.
+Marcar NO si no corresponde.
+
+materia_2_congreso
+Marcar SI si la audiencia trata sobre acuerdos, declaraciones o decisiones del Congreso Nacional o sus miembros.
+Marcar NO si no corresponde.
+
+materia_3_contratos
+Marcar SI si la audiencia trata sobre contratos necesarios para el funcionamiento de sujetos pasivos.
+Marcar NO si no corresponde.
+
+materia_4_politicas_planes_programas
+Marcar SI si la audiencia trata sobre diseno, implementacion o evaluacion de politicas, planes o programas.
+Marcar NO si no corresponde.
+
+referencia
+Campo obligatorio.
+Debe explicar la materia especifica que se desea abordar en la audiencia.
+Debe ser claro y suficientemente descriptivo.
+
+observaciones
+Campo opcional.
+Sirve para agregar informacion adicional que ayude a entender la solicitud.
+
+acepta_politicas
+Debe ser SI si se quiere marcar la declaracion de conocimiento del codigo de buenas practicas para lobbistas.
+Normalmente debe completarse con SI.
+
+
+HOJA "usuarios"
+
+Cada fila representa una persona.
+Todos los usuarios aparecen en el selector del bookmarklet.
+El usuario elegido como solicitante tambien queda disponible para cargarlo como asistente.
+
+
+DATOS BASICOS DEL USUARIO
+
+id_usuario
+Identificador unico de la persona.
+Debe ser corto y facil de reconocer.
+Evitar espacios y caracteres raros.
+Ejemplos:
+ana_rojas
+pedro_fuentes
+laura_morales
+
+etiqueta
+Texto que aparecera en el selector del bookmarklet.
+Debe ayudar a reconocer rapidamente a la persona.
+Ejemplos:
+Ana Rojas - Lobista remunerada
+Pedro Fuentes - Gestor no remunerado
+Laura Morales - Sujeto pasivo
+
+nombres
+Nombres de la persona.
+
+apellidos
+Apellidos de la persona.
+
+rut_pasaporte
+RUT o pasaporte de la persona.
+Si el pais es Chile, ingresar un RUT valido.
+
+pais
+Pais emisor del documento.
+Para Chile usar CHL.
+Para otros paises, se puede usar el nombre del pais como aparece en la pagina.
+
+medio_preferido
+Medio de contacto principal.
+Valores permitidos:
+email
+telefono
+
+telefono
+Telefono de contacto.
+Ejemplo: +56911111111.
+
+email
+Correo electronico de contacto.
+Ejemplo: nombre@dominio.cl.
+
+genero
+Genero de la persona para el formulario principal.
+Valores permitidos:
+masculino
+femenino
+prefiero_no_decir
+
+otro_contacto
+Campo opcional.
+Se carga en "Otro contacto" dentro del modal de asistentes.
+Ejemplo: Disponible por WhatsApp en horario laboral.
+
+
+DATOS PARA EL MODAL "NUEVO ASISTENTES"
+
+tipo_asistente
+Indica la calidad del asistente.
+Valores permitidos:
+lobista
+gestor
+pasivo
+
+Usar lobista si la persona recibe remuneracion por realizar lobby.
+Usar gestor si la persona no recibe remuneracion por la gestion de intereses.
+Usar pasivo si la persona es autoridad o funcionario frente al cual se realiza lobby o acompana en esa calidad.
+
+remunerado
+Solo aplica para lobista o gestor.
+Valores permitidos:
+SI
+NO
+
+Si tipo_asistente es lobista, normalmente remunerado sera SI.
+Si tipo_asistente es gestor, normalmente remunerado sera NO.
+Si tipo_asistente es pasivo, dejar vacio.
+
+cargo_institucion_pasivo
+Solo aplica si tipo_asistente es pasivo.
+Indicar cargo e institucion.
+Ejemplo: Jefa de division, institucion mock.
+
+
+DATOS DEL REPRESENTADO
+
+Estos campos aplican para lobista y gestor.
+No aplican para pasivo.
+
+representado_tipo
+Tipo de persona del representado.
+Valores permitidos:
+persona_natural
+persona_juridica
+
+persona_natural: una persona individual.
+persona_juridica: empresa, sociedad, fundacion, corporacion u otra entidad con personalidad juridica.
+otras_entidades: entidad sin personalidad juridica.
+
+representado_nombre
+Nombre completo, razon social o nombre de fantasia del representado.
+
+representado_rut_pasaporte
+RUT o pasaporte del representado.
+Obligatorio para persona_natural y persona_juridica.
+No aplica normalmente para otras_entidades.
+
+representado_pais
+Pais emisor del documento del representado.
+Para Chile usar CHL.
+
+representado_actividades
+Actividades del representado.
+Requerido para persona_juridica y otras_entidades.
+
+representado_giro
+Giro del representado.
+Requerido para persona_juridica.
+
+representado_domicilio
+Domicilio del representado.
+Requerido para persona_juridica.
+
+representado_representante_legal
+Representante legal del representado.
+Requerido para persona_juridica.
+
+representado_naturaleza
+Naturaleza juridica del representado.
+Ejemplos:
+Sociedad por acciones
+Sociedad limitada
+Fundacion
+Corporacion
+
+representado_directorio
+Directorio, administradores o informacion equivalente.
+Puede ser texto libre.
+
+
+DATOS DEL EMPLEADOR
+
+Estos campos solo aplican cuando remunerado es SI.
+Si remunerado es NO o el usuario es pasivo, pueden dejarse vacios.
+
+empleador_nombre
+Nombre de la organizacion empleadora.
+
+empleador_rut_pasaporte
+RUT o pasaporte del empleador.
+
+empleador_pais
+Pais emisor del documento del empleador.
+Para Chile usar CHL.
+
+empleador_actividades
+Actividades del empleador.
+
+empleador_giro
+Giro del empleador.
+
+empleador_domicilio
+Domicilio del empleador.
+
+empleador_representante_legal
+Representante legal del empleador.
+
+empleador_naturaleza
+Naturaleza juridica del empleador.
+Ejemplo: Sociedad limitada, Sociedad por acciones.
+
+empleador_directorio
+Directorio, administradores o informacion equivalente del empleador.
+
+
+CASOS TIPICOS DE LLENADO
+
+1. Lobista remunerado
+Completar datos basicos.
+tipo_asistente = lobista
+remunerado = SI
+Completar representado.
+Completar empleador.
+
+2. Gestor no remunerado
+Completar datos basicos.
+tipo_asistente = gestor
+remunerado = NO
+Completar representado.
+Dejar empleador vacio.
+
+3. Sujeto pasivo
+Completar datos basicos.
+tipo_asistente = pasivo
+Completar cargo_institucion_pasivo.
+Dejar representado y empleador vacios.
+
+
+RECOMENDACIONES
+
+No borrar los encabezados de las columnas.
+No cambiar el nombre de las hojas.
+Usar una fila por persona en la hoja usuarios.
+Completar al menos un usuario antes de generar el JSON.
+Revisar que el email tenga formato correcto.
+Para Chile usar pais = CHL.
+Si no sabe si el solicitante asistira, usar MANUAL en la hoja solicitud.
+El envio final siempre debe hacerlo una persona desde la pagina, luego de revisar y resolver Turnstile.

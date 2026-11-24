@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Ley Lobby</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #eef2f7;
+        --card: #ffffff;
+        --text: #152033;
+        --muted: #607089;
+        --line: #d9e0eb;
+        --primary: #174ea6;
+        --danger: #b42318;
+        --ok: #147a3f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+      }
+
+      header {
+        background: #101828;
+        color: #fff;
+        padding: 20px clamp(16px, 4vw, 40px);
+      }
+
+      header h1 {
+        font-size: clamp(22px, 4vw, 34px);
+        line-height: 1.1;
+        margin: 0 0 8px;
+      }
+
+      header p {
+        color: #cbd5e1;
+        margin: 0;
+      }
+
+      main {
+        display: grid;
+        gap: 18px;
+        padding: 18px clamp(12px, 3vw, 32px) 36px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: 0 14px 34px rgba(16, 24, 40, 0.08);
+        padding: 18px;
+      }
+
+      .toolbar {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: space-between;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      h2 {
+        font-size: 19px;
+        margin: 0 0 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      input,
+      select,
+      textarea {
+        border: 1px solid #bdc7d8;
+        border-radius: 9px;
+        color: var(--text);
+        padding: 9px 10px;
+        width: 100%;
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      button {
+        border: 0;
+        border-radius: 9px;
+        cursor: pointer;
+        font-weight: 800;
+        padding: 10px 13px;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .primary {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .secondary {
+        background: #e8edf6;
+        color: #111827;
+      }
+
+      .danger {
+        background: #fee4e2;
+        color: var(--danger);
+      }
+
+      .grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .tabs {
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 16px;
+      }
+
+      .tab-button {
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 9px 9px 0 0;
+        color: var(--muted);
+        padding: 10px 12px;
+      }
+
+      .tab-button.active {
+        background: #fff;
+        border-color: var(--line);
+        border-bottom-color: #fff;
+        color: var(--primary);
+        margin-bottom: -1px;
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      .tab-panel.active {
+        display: grid;
+      }
+
+      .span-2 {
+        grid-column: span 2;
+      }
+
+      .span-4 {
+        grid-column: span 4;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .field-help {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.35;
+      }
+
+      .status {
+        border-radius: 10px;
+        color: var(--muted);
+        margin-top: 12px;
+        min-height: 22px;
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .status.ok {
+        color: var(--ok);
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: #475467;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .table-wrap {
+        overflow: auto;
+      }
+
+      .pill {
+        border-radius: 999px;
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 800;
+        padding: 3px 8px;
+      }
+
+      .pill.on {
+        background: #dcfae6;
+        color: #067647;
+      }
+
+      .pill.off {
+        background: #fee4e2;
+        color: #b42318;
+      }
+
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .span-2,
+        .span-4 {
+          grid-column: span 2;
+        }
+      }
+
+      @media (max-width: 620px) {
+        main {
+          padding-inline: 10px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .span-2,
+        .span-4 {
+          grid-column: span 1;
+        }
+      }
+    </style>
+    <script src="/firebase-config.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Admin Ley Lobby</h1>
+      <p>Gestion de usuarios sensibles para el bookmarklet. Solo administradores autorizados.</p>
+    </header>
+
+    <main>
+      <section class="card toolbar">
+        <div>
+          <strong id="sessionLabel">Sin sesion</strong>
+          <div id="sessionDetail" class="muted">Inicia sesion para continuar.</div>
+        </div>
+        <div class="actions">
+          <button id="loginButton" class="primary" type="button">Entrar con Google</button>
+          <button id="logoutButton" class="secondary hidden" type="button">Salir</button>
+        </div>
+      </section>
+
+      <section id="adminApp" class="hidden">
+        <section id="accessSection" class="card">
+          <div class="toolbar">
+            <div>
+              <h2>Accesos</h2>
+              <p class="muted" style="margin:0">Aprueba solicitudes y administra quienes pueden usar la extension.</p>
+            </div>
+            <div class="actions">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:700"><input id="includeReviewedAccess" type="checkbox" style="width:auto"> Ver revisadas</label>
+              <button id="refreshAccessButton" class="secondary" type="button">Actualizar accesos</button>
+            </div>
+          </div>
+
+          <h3 style="font-size:16px;margin:16px 0 8px">Solicitudes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Nombre</th>
+                  <th>UID</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="accessRequestsTableBody"></tbody>
+            </table>
+          </div>
+
+          <h3 style="font-size:16px;margin:18px 0 8px">Usuarios autorizados</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Nombre</th>
+                  <th>UID</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="appUsersTableBody"></tbody>
+            </table>
+          </div>
+          <div id="accessStatus" class="status"></div>
+        </section>
+
+        <section class="card">
+          <div class="toolbar">
+            <h2 id="usersTitle">Usuarios</h2>
+            <div class="actions">
+              <input id="searchInput" type="search" placeholder="Buscar por nombre, id, documento o email" style="min-width:min(360px, 75vw)">
+              <label id="ownerFilterWrap" style="display:grid;gap:4px;font-weight:700">Dueño <select id="ownerFilter" style="min-width:220px"></select></label>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:700"><input id="includeInactive" type="checkbox" style="width:auto"> Incluir inactivos</label>
+              <button id="searchButton" class="secondary" type="button">Buscar</button>
+              <button id="newButton" class="primary" type="button">Nuevo usuario</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>RUT / Pasaporte</th>
+                  <th>Email</th>
+                  <th>Tipo</th>
+                  <th>Dueño</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody"></tbody>
+            </table>
+          </div>
+          <div id="listStatus" class="status" role="status"></div>
+          <div class="actions" aria-label="Paginacion de usuarios">
+            <button id="usersPrevious" class="secondary" type="button" disabled>Pagina anterior</button>
+            <button id="usersNext" class="secondary" type="button" disabled>Pagina siguiente</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 id="formTitle">Nuevo usuario</h2>
+          <form id="userForm" novalidate>
+            <div class="tabs" role="tablist" aria-label="Secciones del usuario">
+              <button class="tab-button active" type="button" data-tab-target="personal">Datos personales</button>
+              <button class="tab-button" type="button" data-tab-target="representado">Representado</button>
+              <button class="tab-button" type="button" data-tab-target="empleador">Empleador</button>
+            </div>
+
+            <section class="grid tab-panel active" data-tab-panel="personal">
+              <label>
+                ID
+                <input name="id" required pattern="[A-Za-z0-9_-]{2,80}" placeholder="ana_rojas">
+                <span class="field-help">Identificador interno: letras, numeros, guion y guion bajo.</span>
+              </label>
+              <label class="span-2">
+                Etiqueta visible
+                <input name="label" required placeholder="Ana Rojas - Lobista remunerada">
+                <span class="field-help">Nombre que veran los operadores al seleccionar el registro.</span>
+              </label>
+              <label>
+                Activo
+                <select name="active">
+                  <option value="true">Si</option>
+                  <option value="false">No</option>
+                </select>
+                <span class="field-help">Desactivalo para impedir su uso sin borrar el historial.</span>
+              </label>
+              <label id="ownerFieldWrap" class="span-2">
+                Usuario dueño
+                <select name="ownerUid" required></select>
+                <span class="field-help">Operador responsable del registro.</span>
+              </label>
+              <label>
+                Nombres
+                <input name="nombres">
+                <span class="field-help">Tal como aparece en su documento.</span>
+              </label>
+              <label>
+                Apellidos
+                <input name="apellidos">
+                <span class="field-help">Incluye ambos apellidos si corresponde.</span>
+              </label>
+              <label>
+                RUT / Pasaporte
+                <input name="pasaporte">
+                <span class="field-help">RUT con guion, por ejemplo 12345678-9; pasaporte para extranjeros.</span>
+              </label>
+              <label>
+                Pais
+                <input name="pais" value="CHL">
+                <span class="field-help">Codigo ISO-3, por ejemplo CHL o ARG.</span>
+              </label>
+              <label>
+                Medio
+                <select name="medio">
+                  <option value="">Sin definir</option>
+                  <option value="email">Email</option>
+                  <option value="telefono">Telefono</option>
+                  <option value="otro">Otro</option>
+                </select>
+                <span class="field-help">Canal preferido de contacto para la audiencia.</span>
+              </label>
+              <label>
+                Telefono
+                <input name="telefono" placeholder="+569XXXXXXXX">
+                <span class="field-help">Numero chileno en formato internacional.</span>
+              </label>
+              <label>
+                Telefono alternativo (Camara)
+                <input name="telefonoAlternativo" placeholder="+569XXXXXXXX">
+                <span class="field-help">Segundo telefono usado por el formulario de Camara.</span>
+              </label>
+              <label>
+                Email
+                <input name="email" type="email">
+                <span class="field-help">Correo de contacto del solicitante o asistente.</span>
+              </label>
+              <label>
+                Genero
+                <select name="genero">
+                  <option value="">Sin definir</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="femenino">Femenino</option>
+                  <option value="otro">Otro</option>
+                </select>
+                <span class="field-help">Dato requerido por algunos formularios de Ley Lobby.</span>
+              </label>
+              <label>
+                Tipo
+                <select name="tipo">
+                  <option value="lobista">Lobista</option>
+                  <option value="gestor">Gestor</option>
+                  <option value="pasivo">Sujeto pasivo</option>
+                </select>
+                <span class="field-help">Clasificacion del usuario para el flujo de Ley Lobby.</span>
+              </label>
+              <label>
+                Remunerado
+                <select name="remunerado">
+                  <option value="false">No</option>
+                  <option value="true">Si</option>
+                </select>
+                <span class="field-help">Indica si recibe pago por la gestion de intereses.</span>
+              </label>
+              <label class="span-2">
+                Cargo / institucion
+                <input name="cargoInstitucion">
+                <span class="field-help">Usalo para sujetos pasivos.</span>
+              </label>
+              <label class="span-2">
+                Otro contacto
+                <input name="otroContacto">
+                <span class="field-help">Referencia o instrucciones de contacto que no son un telefono.</span>
+              </label>
+            </section>
+
+            <section class="grid tab-panel" data-tab-panel="representado">
+              <p class="span-4 muted" style="margin:0">Persona, empresa o entidad en cuyo nombre actua el usuario. Aplica normalmente para lobistas y gestores.</p>
+              <label>
+                Tipo representado
+                <select name="representado.tipo">
+                  <option value="">Sin definir</option>
+                  <option value="persona_natural">Persona natural</option>
+                  <option value="persona_juridica">Persona juridica</option>
+                  <option value="otras_entidades">Otras entidades</option>
+                </select>
+                <span class="field-help">Selecciona a quien representa el usuario.</span>
+              </label>
+              <label class="span-2">
+                Nombre o razon social
+                <input name="representado.nombre">
+                <span class="field-help">Nombre completo, razon social o nombre de la entidad.</span>
+              </label>
+              <label>
+                Nombres (persona natural)
+                <input name="representado.nombres">
+                <span class="field-help">Completa solo si el representado es persona natural.</span>
+              </label>
+              <label>
+                Apellidos (persona natural)
+                <input name="representado.apellidos">
+                <span class="field-help">Completa solo si el representado es persona natural.</span>
+              </label>
+              <label>
+                RUT / Pasaporte
+                <input name="representado.pasaporte">
+                <span class="field-help">RUT con guion o pasaporte de una persona extranjera.</span>
+              </label>
+              <label>
+                Tipo de identificacion (Camara)
+                <select name="representado.identificacion">
+                  <option value="">RUT (predeterminado)</option>
+                  <option value="codigo">Codigo identificador</option>
+                </select>
+                <span class="field-help">Usa codigo solo si Camara no solicita RUT.</span>
+              </label>
+              <label>
+                Codigo identificador
+                <input name="representado.identificador">
+                <span class="field-help">Usalo solo si la identificacion es codigo.</span>
+              </label>
+              <label>
+                Pais (ISO-3)
+                <input name="representado.pais" value="CHL" maxlength="3" pattern="[A-Za-z]{3}" placeholder="CHL" aria-describedby="representadoPaisHelp">
+                <span id="representadoPaisHelp" class="field-help">Por ejemplo: CHL o ARG.</span>
+              </label>
+              <label class="span-2">
+                Actividades
+                <input name="representado.actividades">
+                <span class="field-help">Describe la actividad principal de la entidad.</span>
+              </label>
+              <label>
+                Giro
+                <input name="representado.giro">
+                <span class="field-help">Giro o actividad economica declarada.</span>
+              </label>
+              <label class="span-2">
+                Domicilio
+                <input name="representado.domicilio">
+                <span class="field-help">Calle, numero y datos necesarios para identificar la direccion.</span>
+              </label>
+              <label>
+                Region
+                <input name="representado.region">
+                <span class="field-help">Nombre o numero de la region de Chile.</span>
+              </label>
+              <label>
+                Comuna
+                <input name="representado.comuna">
+                <span class="field-help">Nombre de la comuna asociada a la region.</span>
+              </label>
+              <label>
+                Tipo de representacion
+                <select name="representado.tipoRepresentacion">
+                  <option value="">Sin definir</option>
+                  <option value="legal">Legal</option>
+                  <option value="contractual">Contractual</option>
+                  <option value="oficiosa">Oficiosa</option>
+                </select>
+                <span class="field-help">Base con la que actua en nombre del representado.</span>
+              </label>
+              <label>
+                Representante legal
+                <input name="representado.representanteLegal">
+                <span class="field-help">Nombre completo de quien representa legalmente a la entidad.</span>
+              </label>
+              <label>
+                Naturaleza
+                <input name="representado.naturaleza">
+                <span class="field-help">Categoria juridica, por ejemplo SpA o fundacion.</span>
+              </label>
+              <label class="span-4">
+                Directorio
+                <textarea name="representado.directorio"></textarea>
+                <span class="field-help">Autoridades, directores o integrantes relevantes.</span>
+              </label>
+            </section>
+
+            <section class="grid tab-panel" data-tab-panel="empleador">
+              <p class="span-4 muted" style="margin:0">Empresa o entidad que emplea o remunera al usuario. Aplica normalmente cuando es lobista remunerado.</p>
+              <label class="span-2">
+                Nombre
+                <input name="empleador.nombre">
+                <span class="field-help">Razon social de quien emplea o remunera al usuario.</span>
+              </label>
+              <label>
+                RUT / Pasaporte
+                <input name="empleador.pasaporte">
+                <span class="field-help">RUT con guion o identificacion extranjera si aplica.</span>
+              </label>
+              <label>
+                Pais
+                <input name="empleador.pais" value="CHL">
+                <span class="field-help">Codigo ISO-3, por ejemplo CHL o ARG.</span>
+              </label>
+              <label class="span-2">
+                Actividades
+                <input name="empleador.actividades">
+                <span class="field-help">Actividad principal de la organizacion.</span>
+              </label>
+              <label>
+                Giro
+                <input name="empleador.giro">
+                <span class="field-help">Giro o actividad economica declarada.</span>
+              </label>
+              <label class="span-2">
+                Domicilio
+                <input name="empleador.domicilio">
+                <span class="field-help">Calle, numero y datos necesarios para identificar la direccion.</span>
+              </label>
+              <label>
+                Representante legal
+                <input name="empleador.representanteLegal">
+                <span class="field-help">Nombre completo de quien representa legalmente a la organizacion.</span>
+              </label>
+              <label>
+                Naturaleza
+                <input name="empleador.naturaleza">
+                <span class="field-help">Categoria juridica, por ejemplo SpA o fundacion.</span>
+              </label>
+              <label class="span-4">
+                Directorio
+                <textarea name="empleador.directorio"></textarea>
+                <span class="field-help">Autoridades, directores o integrantes relevantes.</span>
+              </label>
+            </section>
+
+            <div class="actions" style="margin-top:14px">
+              <button class="primary" type="submit">Guardar</button>
+              <button id="resetFormButton" class="secondary" type="button">Limpiar</button>
+            </div>
+          </form>
+          <div id="formStatus" class="status"></div>
+        </section>
+
+        <section class="card">
+          <h2>Importar CSV / JSON</h2>
+          <div class="grid">
+            <label class="span-2">
+              Archivo
+              <input id="importFile" type="file" accept=".csv,.json,text/csv,application/json">
+            </label>
+            <label>
+              Modo
+              <select id="importMode">
+                <option value="upsert">Crear o actualizar</option>
+                <option value="create">Crear solo nuevos</option>
+                <option value="update">Actualizar existentes</option>
+              </select>
+            </label>
+            <label id="importOwnerWrap">
+              Dueño por defecto
+              <select id="importOwnerUid"></select>
+            </label>
+            <div class="actions" style="align-items:end">
+              <button id="dryRunButton" class="secondary" type="button">Validar</button>
+              <button id="importButton" class="primary" type="button">Importar</button>
+            </div>
+          </div>
+          <p class="muted">JSON acepta un arreglo, `{ "usuarios": [...] }` o `{ "users": [...] }`. CSV usa la primera fila como encabezados y soporta columnas como `representado.tipo` o `empleador.nombre`.</p>
+          <div id="importStatus" class="status"></div>
+          <div id="importPreview" class="table-wrap"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/api-config.js?v=20261124-render"></script>
+    <script type="module" src="/admin.js?v=20261124-render"></script>
+  </body>
+</html>

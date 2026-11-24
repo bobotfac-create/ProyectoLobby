@@ -1,0 +1,24 @@
+{
+  "name": "lobby-firebase-functions",
+  "private": true,
+  "description": "API segura para datos de llenado Ley Lobby",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "scripts": {
+    "check": "node --check index.js && node --check app.js && node --check server.js",
+    "test": "node test-integrity.js && node test-smoke.js && node test-server.js",
+    "start": "node server.js",
+    "serve": "firebase emulators:start --only functions,firestore,hosting",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "firebase-admin": "^14.5.1",
+    "firebase-functions": "^7.4.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "15.37.0"
+  }
+}

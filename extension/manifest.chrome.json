@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Asistente Lobby",
+  "version": "0.1.1",
+  "description": "Asistente de llenado para Ley Lobby con datos privados desde Firebase.",
+  "permissions": ["storage", "identity"],
+  "host_permissions": [
+    "https://www.leylobby.gob.cl/*",
+    "https://leylobby.gob.cl/*",
+    "https://www.camara.cl/*",
+    "https://camara.cl/*",
+    "https://asistente-lobby.web.app/*",
+    "https://identitytoolkit.googleapis.com/*",
+    "https://securetoken.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.leylobby.gob.cl/solicitud/audiencia*",
+        "https://leylobby.gob.cl/solicitud/audiencia*",
+        "https://www.camara.cl/transparencia/FormularioSolicitudAudiencia.aspx*",
+        "https://camara.cl/transparencia/FormularioSolicitudAudiencia.aspx*"
+      ],
+      "js": [
+        "src/config.js",
+        "src/shared/payload.js",
+        "src/sites/leylobby/form-filler.js",
+        "src/sites/camara/form-filler.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/page-bridge.js"],
+      "matches": [
+        "https://www.leylobby.gob.cl/*",
+        "https://leylobby.gob.cl/*"
+      ]
+    }
+  ]
+}
