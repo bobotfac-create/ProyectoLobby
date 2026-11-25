@@ -1,6 +1,8 @@
-// Agregar solo las URL completas devueltas por identity.getRedirectURL("firebase")
-// para las versiones autorizadas. Lista vacia bloquea el login de la extension.
-window.LOBBY_EXTENSION_REDIRECTS = Object.freeze([]);
+// Agregar solo las URL completas de las versiones de extension autorizadas.
+window.LOBBY_EXTENSION_REDIRECTS = Object.freeze([
+  "https://jjicnjpjjpcekmpccejamkookcfdcbkb.chromiumapp.org/firebase",
+  "https://396d7498a622f947e55eef3fa34c4ac03f06cdb6.extensions.allizom.org/firebase"
+]);
 
 window.isAllowedLobbyExtensionRedirect = function (value) {
   try {

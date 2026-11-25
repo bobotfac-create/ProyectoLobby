@@ -1,0 +1,19 @@
+{
+  "usuarios": [
+    {
+      "id": "mock_solicitante_json_ana",
+      "label": "PRUEBA - Ana lobista JSON",
+      "nombres": "Ana",
+      "apellidos": "Ejemplo",
+      "pasaporte": "11111111-1",
+      "pais": "CHL",
+      "medio": "email",
+      "telefono": "+56911111111",
+      "email": "ana@example.invalid",
+      "tipo": "lobista",
+      "remunerado": true,
+      "active": true,
+      "empleador": { "nombre": "Consultora Ficticia", "pais": "CHL" }
+    }
+  ]
+}

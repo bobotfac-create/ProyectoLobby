@@ -59,6 +59,21 @@
         padding: 18px;
       }
 
+      #adminApp {
+        display: grid;
+        gap: 18px;
+      }
+
+      .card > summary {
+        cursor: pointer;
+        font-size: 19px;
+        font-weight: 700;
+      }
+
+      .card[open] > summary { margin-bottom: 16px; }
+
+      :focus-visible { outline: 3px solid #174ea6; outline-offset: 2px; }
+
       .toolbar {
         align-items: center;
         display: flex;
@@ -282,8 +297,8 @@
   </head>
   <body>
     <header>
-      <h1>Admin Ley Lobby</h1>
-      <p>Gestion de usuarios sensibles para el bookmarklet. Solo administradores autorizados.</p>
+      <h1>Administracion de usuarios Lobby</h1>
+      <p>Gestiona los usuarios disponibles para completar solicitudes de audiencia.</p>
     </header>
 
     <main>
@@ -299,58 +314,11 @@
       </section>
 
       <section id="adminApp" class="hidden">
-        <section id="accessSection" class="card">
-          <div class="toolbar">
-            <div>
-              <h2>Accesos</h2>
-              <p class="muted" style="margin:0">Aprueba solicitudes y administra quienes pueden usar la extension.</p>
-            </div>
-            <div class="actions">
-              <label style="display:flex;align-items:center;gap:6px;font-weight:700"><input id="includeReviewedAccess" type="checkbox" style="width:auto"> Ver revisadas</label>
-              <button id="refreshAccessButton" class="secondary" type="button">Actualizar accesos</button>
-            </div>
-          </div>
-
-          <h3 style="font-size:16px;margin:16px 0 8px">Solicitudes</h3>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Nombre</th>
-                  <th>UID</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="accessRequestsTableBody"></tbody>
-            </table>
-          </div>
-
-          <h3 style="font-size:16px;margin:18px 0 8px">Usuarios autorizados</h3>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Nombre</th>
-                  <th>UID</th>
-                  <th>Rol</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="appUsersTableBody"></tbody>
-            </table>
-          </div>
-          <div id="accessStatus" class="status"></div>
-        </section>
-
-        <section class="card">
+        <section id="usersSection" class="card">
           <div class="toolbar">
             <h2 id="usersTitle">Usuarios</h2>
             <div class="actions">
-              <input id="searchInput" type="search" placeholder="Buscar por nombre, id, documento o email" style="min-width:min(360px, 75vw)">
+              <label>Buscar usuarios <input id="searchInput" type="search" placeholder="Nombre, ID, documento o email" style="min-width:min(360px, 75vw)"></label>
               <label id="ownerFilterWrap" style="display:grid;gap:4px;font-weight:700">Dueño <select id="ownerFilter" style="min-width:220px"></select></label>
               <label style="display:flex;align-items:center;gap:6px;font-weight:700"><input id="includeInactive" type="checkbox" style="width:auto"> Incluir inactivos</label>
               <button id="searchButton" class="secondary" type="button">Buscar</button>
@@ -381,13 +349,13 @@
           </div>
         </section>
 
-        <section class="card">
-          <h2 id="formTitle">Nuevo usuario</h2>
+        <section id="formSection" class="card">
+          <h2 id="formTitle" tabindex="-1">Nuevo usuario</h2>
           <form id="userForm" novalidate>
-            <div class="tabs" role="tablist" aria-label="Secciones del usuario">
-              <button class="tab-button active" type="button" data-tab-target="personal">Datos personales</button>
-              <button class="tab-button" type="button" data-tab-target="representado">Representado</button>
-              <button class="tab-button" type="button" data-tab-target="empleador">Empleador</button>
+            <div class="tabs" role="group" aria-label="Secciones del usuario">
+              <button class="tab-button active" type="button" data-tab-target="personal" aria-pressed="true">Datos personales</button>
+              <button class="tab-button" type="button" data-tab-target="representado" aria-pressed="false">Representado anterior</button>
+              <button class="tab-button" type="button" data-tab-target="empleador" aria-pressed="false">Empleador</button>
             </div>
 
             <section class="grid tab-panel active" data-tab-panel="personal">
@@ -499,7 +467,7 @@
             </section>
 
             <section class="grid tab-panel" data-tab-panel="representado">
-              <p class="span-4 muted" style="margin:0">Persona, empresa o entidad en cuyo nombre actua el usuario. Aplica normalmente para lobistas y gestores.</p>
+              <p class="span-4 muted" style="margin:0">Dato anterior conservado por compatibilidad. Gestiona los representados independientes en su catalogo.</p>
               <label>
                 Tipo representado
                 <select name="representado.tipo">
@@ -654,11 +622,64 @@
               <button id="resetFormButton" class="secondary" type="button">Limpiar</button>
             </div>
           </form>
-          <div id="formStatus" class="status"></div>
+          <div id="formStatus" class="status" role="status"></div>
         </section>
 
-        <section class="card">
-          <h2>Importar CSV / JSON</h2>
+        <section id="representadosSection" class="card">
+          <div class="toolbar">
+            <div><h2>Representados</h2><p class="muted">Personas y entidades disponibles para elegir en cada solicitud.</p></div>
+            <div class="actions"><label>Buscar representados <input id="representedSearch" type="search"></label><button id="representedSearchButton" class="secondary" type="button">Buscar</button><button id="representedNew" class="primary" type="button">Nuevo representado</button></div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Nombre</th><th>Tipo</th><th>Dueño</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="representedTable"></tbody></table></div>
+          <p id="representedListStatus" class="status" role="status"></p>
+          <div class="actions"><button id="representedPrevious" class="secondary" type="button" disabled>Pagina anterior</button><button id="representedNext" class="secondary" type="button" disabled>Pagina siguiente</button></div>
+          <h3 id="representedFormTitle" tabindex="-1">Nuevo representado</h3>
+          <form id="representedForm">
+            <div class="grid">
+              <label>ID <input name="id" required pattern="[A-Za-z0-9_-]{2,80}"></label>
+              <label id="representedOwnerWrap">Usuario dueño <select name="ownerUid"></select></label>
+              <label>Activo <select name="active"><option value="true">Si</option><option value="false">No</option></select></label>
+            </div>
+            <div id="representedFields" style="margin-top:12px"></div>
+            <div class="actions" style="margin-top:14px"><button class="primary" type="submit">Guardar representado</button><button id="representedReset" class="secondary" type="button">Limpiar</button></div>
+          </form>
+          <p id="representedFormStatus" class="status" role="status"></p>
+          <details><summary>Importar representados CSV / JSON</summary>
+            <div class="actions"><label>Archivo <input id="representedFile" type="file" accept=".csv,.json,text/csv,application/json"></label><label>Modo <select id="representedImportMode"><option value="create">Crear solo nuevos</option><option value="update">Actualizar existentes</option><option value="upsert">Crear o actualizar</option></select></label><button id="representedValidate" class="secondary" type="button">Validar</button><button id="representedImport" class="primary" type="button">Importar</button></div>
+            <p class="muted">CSV con columnas id, nombre y tipo; JSON con arreglo de representados. El dueño seleccionado arriba se usa por defecto.</p>
+            <p id="representedImportStatus" class="status" role="status"></p>
+          </details>
+          <details id="representedMigration"><summary>Revisar representados anteriores</summary>
+            <p class="muted">Simula la separacion de los datos antiguos. No crea ni modifica registros; las coincidencias requieren revision manual.</p>
+            <button id="representedMigrationPreview" class="secondary" type="button">Simular migracion</button>
+            <pre id="representedMigrationStatus" style="white-space:pre-wrap;overflow-wrap:anywhere" role="status"></pre>
+          </details>
+        </section>
+
+        <details id="accessSection" class="card">
+          <summary>Administrar accesos</summary>
+          <div class="toolbar">
+            <p class="muted" style="margin:0">Aprueba solicitudes y administra quienes pueden usar la extension.</p>
+            <div class="actions">
+              <label style="display:flex;align-items:center;gap:6px;font-weight:700"><input id="includeReviewedAccess" type="checkbox" style="width:auto"> Ver revisadas</label>
+              <button id="refreshAccessButton" class="secondary" type="button">Actualizar accesos</button>
+            </div>
+          </div>
+          <h3 style="font-size:16px;margin:16px 0 8px">Solicitudes</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Email</th><th>Nombre</th><th>UID</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="accessRequestsTableBody"></tbody>
+          </table></div>
+          <h3 style="font-size:16px;margin:18px 0 8px">Usuarios autorizados</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Email</th><th>Nombre</th><th>UID</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="appUsersTableBody"></tbody>
+          </table></div>
+          <div id="accessStatus" class="status" role="status"></div>
+        </details>
+
+        <details id="importSection" class="card">
+          <summary>Importar CSV / JSON</summary>
           <div class="grid">
             <label class="span-2">
               Archivo
@@ -682,13 +703,13 @@
             </div>
           </div>
           <p class="muted">JSON acepta un arreglo, `{ "usuarios": [...] }` o `{ "users": [...] }`. CSV usa la primera fila como encabezados y soporta columnas como `representado.tipo` o `empleador.nombre`.</p>
-          <div id="importStatus" class="status"></div>
+          <div id="importStatus" class="status" role="status"></div>
           <div id="importPreview" class="table-wrap"></div>
-        </section>
+        </details>
       </section>
     </main>
 
-    <script src="/api-config.js?v=20261124-render"></script>
-    <script type="module" src="/admin.js?v=20261124-render"></script>
+    <script src="/api-config.js?v=20261125-render"></script>
+    <script type="module" src="/admin.js?v=20261125-representados"></script>
   </body>
 </html>

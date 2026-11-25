@@ -224,7 +224,11 @@
     var typeValue = type === "persona_juridica" ? "12" : type === "entidad" ? "13" : "11";
     return selectWithPostback("#ContentPlaceHolder1_ContentPlaceHolder1_ddlTipo", typeValue, "Representado tipo", result)
       .then(function () {
-        return selectWithPostback("#ContentPlaceHolder1_ContentPlaceHolder1_ddlTipoRep", data.tipoRepresentacion || "Legal", "Naturaleza de la representacion", result);
+        if (!data.tipoRepresentacion) {
+          result.warnings.push("Tipo de representacion no indicado; selecciona y revisa manualmente.");
+          return;
+        }
+        return selectWithPostback("#ContentPlaceHolder1_ContentPlaceHolder1_ddlTipoRep", data.tipoRepresentacion, "Naturaleza de la representacion", result);
       })
       .then(function () {
         if (type === "persona_natural") {

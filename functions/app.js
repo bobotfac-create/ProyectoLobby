@@ -43,6 +43,35 @@ const LOBBY_USER_FIELDS = [
   "updatedByUid",
   "active"
 ];
+const REPRESENTADO_FIELDS = ["id", "nombre", "nombres", "apellidos", "tipo", "pasaporte", "identificacion", "identificador", "pais", "actividades", "giro", "domicilio", "region", "comuna", "representanteLegal", "naturaleza", "directorio", "active", "ownerUid"];
+
+function sanitizeRepresentado(payload, mode) {
+  const source = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+  const data = {};
+  for (const field of REPRESENTADO_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(source, field)) continue;
+    if (field === "active") data.active = toBoolean(source.active, true);
+    else if (typeof source[field] === "string") data[field] = source[field].trim();
+    else throw Object.assign(new Error(`Campo invalido: ${field}`), { status: 400 });
+  }
+  if (mode === "create") {
+    data.id = requireSafeId(data.id);
+    data.nombre = requireString(data.nombre, "nombre");
+    data.tipo = requireString(data.tipo, "tipo");
+    data.active = data.active !== false;
+    data.createdAt = FieldValue.serverTimestamp();
+  }
+  if (Object.prototype.hasOwnProperty.call(data, "nombre")) data.nombre = requireString(data.nombre, "nombre");
+  if (Object.prototype.hasOwnProperty.call(data, "tipo") && !["persona_natural", "persona_juridica", "otras_entidades"].includes(data.tipo)) {
+    throw Object.assign(new Error("Tipo de representado invalido"), { status: 400 });
+  }
+  data.updatedAt = FieldValue.serverTimestamp();
+  return data;
+}
+
+function representedSearchText(data) {
+  return normalize([data.id, data.nombre, data.nombres, data.apellidos, data.pasaporte, data.identificador].filter(Boolean).join(" "));
+}
 
 function getAllowedOrigins() {
   const configured = process.env.ALLOWED_ORIGINS;
@@ -649,6 +678,147 @@ app.post("/api/app-users/:uid/enable", requireRole(["admin"]), asyncHandler(asyn
   }, { merge: true });
   await writeAudit(req, "enableAppUser", { recordId: uid, success: true });
   res.json({ ok: true, uid });
+}));
+
+app.get("/api/representados", requireRole(["admin", "operator"]), asyncHandler(async (req, res) => {
+  const cursor = req.query.cursor ? requireSafeId(req.query.cursor) : null;
+  const requestedLimit = Number(req.query.limit);
+  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 200) : 25;
+  let query = applyLobbyUsersScope(req, db.collection("representados"));
+  if (req.query.includeInactive !== "true") query = query.where("active", "==", true);
+  if (isAdmin(req) && req.query.ownerUid) query = query.where("ownerUid", "==", requireSafeUid(req.query.ownerUid));
+  const page = await findLobbyUsersPage(query, normalize(req.query.q || ""), limit, cursor, (doc) => Object.assign({}, doc.data(), { id: doc.id }));
+  await writeAudit(req, "listRepresentados", { success: true });
+  res.json({ ok: true, representados: page.users, nextCursor: page.nextCursor });
+}));
+
+app.get("/api/representados/migracion", requireRole(["admin"]), asyncHandler(async (req, res) => {
+  const groups = new Map();
+  const unresolved = [];
+  let complete = true;
+  async function scan(collection, visit) {
+    let cursor = null, count = 0;
+    do {
+      const page = await findLobbyUsersPage(db.collection(collection), "", 500, cursor, (doc) => ({ id: doc.id, data: doc.data() }));
+      page.users.forEach(visit);
+      count += page.users.length;
+      cursor = page.nextCursor;
+      if (count >= 5000 && cursor) { complete = false; break; }
+    } while (cursor);
+  }
+  function add(data, source, id) {
+    if (!data || typeof data !== "object" || Array.isArray(data) || !Object.keys(data).length) return;
+    const name = String(data.nombre || [data.nombres, data.apellidos].filter(Boolean).join(" ") || "").trim();
+    const ownerUid = String(data.ownerUid || "").trim();
+    if (!name || !ownerUid || !["persona_natural", "persona_juridica", "otras_entidades"].includes(data.tipo)) {
+      unresolved.push({ source, id, reason: "Falta nombre, dueño o tipo valido" }); return;
+    }
+    const document = String(data.pasaporte || data.identificador || "").trim();
+    const identity = document && /^[0-9.\s-]+[0-9kK]$/.test(document) ? document.replace(/[.\s-]/g, "").toLowerCase() : normalize(document || name);
+    const key = JSON.stringify([ownerUid, identity]);
+    if (!groups.has(key)) groups.set(key, { ownerUid, nombre: name, documento: data.pasaporte || data.identificador || "", entries: [] });
+    groups.get(key).entries.push({ source, id, nombre: name, tipo: data.tipo });
+  }
+  await scan("lobbyUsers", (doc) => {
+    const value = doc.data.representado;
+    if (value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length) {
+      add(Object.assign({}, value, { ownerUid: doc.data.ownerUid }), "solicitante", doc.id);
+    } else if (value && (typeof value !== "object" || Array.isArray(value))) unresolved.push({ source: "solicitante", id: doc.id, reason: "Representado antiguo tiene formato invalido" });
+  });
+  await scan("representados", (doc) => add(doc.data, "catalogo", doc.id));
+  const candidates = [...groups.values()].filter((group) => group.entries.some((entry) => entry.source === "solicitante"));
+  await writeAudit(req, "previewRepresentadosMigration", { success: true });
+  res.json({ ok: true, complete, candidates, unresolved, note: "Coincidencias por dueño y documento o nombre; revisar manualmente, no se ha escrito ningun dato." });
+}));
+
+app.post("/api/representados/import", requireRole(["admin", "operator"]), asyncHandler(async (req, res) => {
+  const body = req.body || {};
+  const items = Array.isArray(body.representados) ? body.representados : [];
+  const mode = body.mode || "create";
+  const dryRun = body.dryRun !== false;
+  if (!items.length || items.length > 500 || !["create", "update", "upsert"].includes(mode)) {
+    return res.status(400).json({ ok: false, error: "Importacion invalida: usa entre 1 y 500 representados y un modo valido" });
+  }
+  const results = [];
+  for (const [index, item] of items.entries()) {
+    try {
+      const source = Object.assign({}, item);
+      if (!source.ownerUid && body.ownerUid) source.ownerUid = body.ownerUid;
+      const data = await applyLobbyUserOwnership(req, sanitizeRepresentado(source, "create"), "create");
+      const action = await db.runTransaction(async (transaction) => {
+        const ref = db.collection("representados").doc(data.id);
+        const existing = await transaction.get(ref);
+        if (existing.exists && !canAccessLobbyUser(req, existing.data())) throw new Error("Representado no disponible");
+        if ((existing.exists && mode === "create") || (!existing.exists && mode === "update")) return "skip";
+        if (existing.exists) {
+          delete data.createdAt;
+          delete data.createdByUid;
+          if (isAdmin(req) && !Object.prototype.hasOwnProperty.call(item, "ownerUid")) { delete data.ownerUid; delete data.ownerEmail; }
+          if (!Object.prototype.hasOwnProperty.call(source, "active")) delete data.active;
+        }
+        data.searchText = representedSearchText(Object.assign({}, existing.exists ? existing.data() : {}, data));
+        if (!dryRun) transaction.set(ref, data, { merge: existing.exists });
+        return existing.exists ? "update" : "create";
+      });
+      results.push({ index, id: data.id, ok: action !== "skip", action });
+    } catch (error) { results.push({ index, id: item && item.id || null, ok: false, action: "error", error: error.message }); }
+  }
+  await writeAudit(req, "importRepresentados", { success: results.every((item) => item.action !== "error") });
+  res.json({ ok: true, dryRun, results });
+}));
+
+app.get("/api/representados/:id", requireRole(["admin", "operator"]), asyncHandler(async (req, res) => {
+  const id = requireSafeId(req.params.id);
+  const doc = await db.collection("representados").doc(id).get();
+  if (!doc.exists || (req.query.activeOnly === "true" && doc.data().active === false) || !canAccessLobbyUser(req, doc.data())) {
+    await writeAudit(req, "getRepresentado", { recordId: id, success: false, error: "No encontrado" });
+    return res.status(404).json({ ok: false, error: "Representado no encontrado" });
+  }
+  await writeAudit(req, "getRepresentado", { recordId: id, success: true });
+  res.json({ ok: true, representado: Object.assign({}, doc.data(), { id }) });
+}));
+
+app.post("/api/representados", requireRole(["admin", "operator"]), asyncHandler(async (req, res) => {
+  const data = await applyLobbyUserOwnership(req, sanitizeRepresentado(req.body, "create"), "create");
+  data.searchText = representedSearchText(data);
+  try { await db.collection("representados").doc(data.id).create(data); }
+  catch (error) {
+    if (error.code !== 6 && error.code !== "already-exists") throw error;
+    return res.status(409).json({ ok: false, error: "Ya existe un representado con ese id" });
+  }
+  await writeAudit(req, "createRepresentado", { recordId: data.id, success: true });
+  res.status(201).json({ ok: true, id: data.id });
+}));
+
+app.patch("/api/representados/:id", requireRole(["admin", "operator"]), asyncHandler(async (req, res) => {
+  const id = requireSafeId(req.params.id);
+  const data = await applyLobbyUserOwnership(req, sanitizeRepresentado(req.body, "update"), "update");
+  delete data.id;
+  const updated = await db.runTransaction(async (transaction) => {
+    const ref = db.collection("representados").doc(id);
+    const existing = await transaction.get(ref);
+    if (!existing.exists || !canAccessLobbyUser(req, existing.data())) return false;
+    data.searchText = representedSearchText(Object.assign({}, existing.data(), data, { id }));
+    transaction.set(ref, data, { merge: true });
+    return true;
+  });
+  if (!updated) return res.status(404).json({ ok: false, error: "Representado no encontrado" });
+  await writeAudit(req, "updateRepresentado", { recordId: id, success: true });
+  res.json({ ok: true, id });
+}));
+
+app.post("/api/representados/:id/disable", requireRole(["admin", "operator"]), asyncHandler(async (req, res) => {
+  const id = requireSafeId(req.params.id);
+  const updated = await db.runTransaction(async (transaction) => {
+    const ref = db.collection("representados").doc(id);
+    const existing = await transaction.get(ref);
+    if (!existing.exists || !canAccessLobbyUser(req, existing.data())) return false;
+    transaction.update(ref, { active: false, updatedByUid: req.auth.uid, updatedAt: FieldValue.serverTimestamp() });
+    return true;
+  });
+  if (!updated) return res.status(404).json({ ok: false, error: "Representado no encontrado" });
+  await writeAudit(req, "disableRepresentado", { recordId: id, success: true });
+  res.json({ ok: true, id });
 }));
 
 app.get("/api/search-lobby-users", requireRole(["admin", "operator"]), asyncHandler(async (req, res) => {

@@ -40,6 +40,7 @@ La fuente de verdad del producto es `PRODUCT.md`.
 | Content script | `extension/src/content.js` | Panel y coordinacion de adaptadores |
 | Adaptador | `extension/src/sites/leylobby/form-filler.js` | Selectores y llenado del formulario principal |
 | Adaptador | `extension/src/sites/camara/form-filler.js` | Selectores y llenado en Camara |
+| Adaptador | `extension/src/sites/senado/form-filler.js` | Formulario de audiencia del Senado en iframe |
 | Page bridge | `extension/src/page-bridge.js` | Acceso controlado al modal y variables de la pagina |
 | Payload compartido | `extension/src/shared/payload.js` | Ejemplos, normalizacion, etiquetas y escape HTML |
 | API | `functions/app.js` | Express, autenticacion, roles, ownership y auditoria |
@@ -53,14 +54,14 @@ Firebase usa el proyecto `asistente-lobby`, la URL
 
 ## Flujo principal
 
-1. El operador abre el formulario de Ley Lobby o de Camara compatible.
+1. El operador abre el formulario compatible de Ley Lobby, Camara o Senado.
 2. El manifiesto carga `config.js`, `payload.js`, los adaptadores y `content.js`.
 3. El content script muestra un boton flotante y el panel inicia minimizado.
 4. El operador pega JSON o inicia sesion y busca usuarios privados.
 5. El content script pide la operacion al background; nunca recibe tokens.
 6. El background llama a la API con un ID token Firebase.
 7. El adaptador rellena el formulario principal y dispara `input`, `change` y `blur`.
-8. En Ley Lobby, el content script inyecta `page-bridge.js` para el modal; Camara usa campos directos.
+8. En Ley Lobby, el content script inyecta `page-bridge.js` para el modal; Camara y Senado usan campos directos.
 9. Content y bridge se comunican mediante `window.postMessage` solo en Ley Lobby.
 10. El operador revisa, resuelve Turnstile o reCAPTCHA y guarda o envia manualmente.
 
@@ -80,6 +81,15 @@ Detalles de Camara:
 - Los cambios de tipo, nacionalidad, identificacion y region pueden disparar postbacks.
 - Nunca pulsar `BtnAgregarAsistentes`, `btnEnviar` ni reCAPTCHA.
 - Ver `source-analysis/analisis_camara.md` para selectores.
+
+Detalles del Senado:
+
+- El formulario `#form1` se carga en el iframe `lobby.senado.cl/public_html/forms/masters-senado/audiencia.php`.
+- La persona debe seleccionar la autoridad antes de rellenar; tipo de representado y comuna se cargan dinamicamente.
+- El panel vive en la pagina principal; el background enruta mensajes al iframe de esa misma pestaña.
+- `lookup-observer.js` observa la finalizacion de la consulta de RUT del sitio sin transmitir datos personales; se respetan los campos bloqueados por el Senado.
+- No pulsar `Agregar otros Asistentes` ni `Enviar`. Los asistentes adicionales son manuales.
+- La integracion inicial requiere validacion en el sitio real; ver `extension/README.md`.
 
 Para investigar selectores abre primero `source-analysis/analisis_fuente.md`. Los
 snapshots se obtuvieron el 2026-06-11 y pueden no representar el sitio actual.
@@ -122,7 +132,8 @@ La API esta en `functions/app.js`, con entradas `index.js` para Cloud Functions 
 `server.js` para Render. Usa Node.js 22, CommonJS, Express 4 y Firebase Admin
 modular. El cuerpo JSON admite hasta 2 MB y la Function limita a 10 instancias.
 El piloto de Render y la configuracion de URLs se describen en `RENDER.md`; no
-supone que el servicio este desplegado. Las URLs predeterminadas siguen en Firebase.
+supone que la integracion autenticada este validada. El portal y la extension
+apuntan a `https://proyectolobby.onrender.com/api`; Firebase Hosting mantiene el login.
 
 Autorizacion:
 
@@ -149,6 +160,13 @@ Endpoints:
 | `POST /api/app-users/:uid/disable` | Admin | Desactivar usuario |
 | `POST /api/app-users/:uid/enable` | Admin | Reactivar usuario |
 | `GET /api/search-lobby-users` | Admin/operator | Buscar activos; retorna hasta 25 |
+| `GET /api/representados` | Admin/operator | Buscar y listar representados paginados |
+| `GET /api/representados/:id` | Admin/operator | Consultar representado autorizado |
+| `POST /api/representados` | Admin/operator | Crear representado |
+| `PATCH /api/representados/:id` | Admin/operator | Actualizar representado |
+| `POST /api/representados/:id/disable` | Admin/operator | Baja logica del representado |
+| `POST /api/representados/import` | Admin/operator | Importar representados; dry-run por defecto |
+| `GET /api/representados/migracion` | Admin | Simular revision de representados anidados; no escribe datos |
 | `GET /api/lobby-users` | Admin/operator | Listar registros del portal |
 | `GET /api/lobby-users/:id` | Admin/operator | Obtener detalle activo |
 | `POST /api/lobby-users` | Admin/operator | Crear registro |
@@ -169,11 +187,12 @@ en memoria y puede requerir muchas lecturas si la coleccion crece.
 ## Datos Firestore
 
 `firestore.rules` deniega todo acceso directo de clientes. Los datos pasan por
-Firebase Admin SDK. `firestore.indexes.json` define el indice de estado y dueño.
+Firebase Admin SDK. `firestore.indexes.json` define los indices de estado y dueño.
 
 | Coleccion | Contenido |
 |---|---|
 | `lobbyUsers/{id}` | Datos personales, clasificacion, representado, empleador, ownership y estado |
+| `representados/{id}` | Personas o entidades representadas, ownership y estado |
 | `appUsers/{uid}` | Email, nombre, rol, estado y aprobacion |
 | `accessRequests/{uid}` | Solicitud, estado, decision y revisor |
 | `auditLogs/{autoId}` | Usuario, accion, registro, resultado y fecha |
@@ -186,8 +205,9 @@ Reglas relevantes de `lobbyUsers`:
 - Trazabilidad mediante `createdByUid`, `updatedByUid` y timestamps de servidor.
 - `searchText` se normaliza a minusculas, sin tildes y con espacios compactados.
 - Objetos principales: `representado` y `empleador`.
+- `representado` anidado se conserva por compatibilidad; el catalogo independiente se selecciona por persona y solicitud.
 
-No hay migraciones ni esquema tipado. Revisa `LOBBY_USER_FIELDS` y
+No hay migraciones automaticas ni esquema tipado. Revisa `LOBBY_USER_FIELDS` y
 `sanitizeLobbyUserPayload()` antes de agregar campos.
 
 ## Portal web
@@ -250,6 +270,7 @@ Python solo para diagnostico:
 | Extension o login | `extension/README.md`, manifiesto y script afectado |
 | Formulario principal Ley Lobby | `form-filler.js`, `payload.js`, `analisis_fuente.md` |
 | Formulario Camara | `sites/camara/form-filler.js`, `payload.js`, `analisis_camara.md` |
+| Formulario Senado | `sites/senado/form-filler.js`, `payload.js`, `extension/README.md` |
 | Modal de asistentes | `content.js`, `page-bridge.js`, `lobby_app_key_snippets.txt` |
 | API, roles u ownership | `functions/app.js`, `functions/index.js`, `firestore.rules` |
 | Portal | `public/admin.html`, `public/admin.js` |

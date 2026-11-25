@@ -4,11 +4,11 @@ Extension de navegador que reemplaza el bookmarklet actual para asistir el llena
 
 ## Alcance actual
 
-- Sitios soportados: `leylobby.gob.cl` y el formulario de audiencia de `camara.cl`.
+- Sitios soportados: `leylobby.gob.cl`, el formulario de audiencia de `camara.cl` y el formulario del Senado embebido en `senado.cl`.
 - Firebase fijo: `https://asistente-lobby.web.app`.
 - Login principal: Google mediante Firebase Auth y `identity.launchWebAuthFlow`.
 - Login alternativo: email/password de Firebase Auth.
-- Datos sensibles: consultados por Cloud Functions con token Firebase.
+- Datos sensibles: consultados por la API en Render con token Firebase.
 - Modal de asistentes: manejado mediante `page-bridge.js` en el contexto de la pagina.
 
 ## Instalacion en Chrome
@@ -36,6 +36,9 @@ python3 extension/package.py
 python3 extension/test-package.py
 node extension/test-auth-redirects.js
 node extension/test-panel.js
+node extension/test-senado.js
+node extension/test-senado-lookup.js
+node extension/test-senado-frame.js
 node extension/test-background.js
 ```
 
@@ -54,9 +57,9 @@ compatible con sus politicas y Firefox necesita firma para instalacion permanent
 ### Configurar el login Google antes de desplegar
 
 `public/extension-auth-redirects.js` contiene la lista de URL de retorno exactas
-autorizadas y comienza vacia. **Con la lista vacia, el login Google desde la
-extension queda deshabilitado** al publicar Hosting. No despliegues esa pagina
-hasta registrar las URL de todas las instalaciones que deben seguir funcionando.
+autorizadas. Incluye Chrome y la instalacion temporal de Firefox 0.1.2. Una lista
+vacia bloquea el login Google de la extension. Antes de distribuir Firefox,
+confirma que la version firmada use la misma URL de retorno.
 
 1. Confirma las identidades de Chrome y Firefox y prepara las versiones que usara
    el piloto. Conserva el ID de Firefox del manifiesto para futuras actualizaciones.
@@ -79,13 +82,23 @@ El acceso a los registros sigue requiriendo autorizacion individual en Firebase.
 
 1. Abre el formulario final de solicitud de audiencia en Ley Lobby.
 2. Presiona el boton flotante `Abrir Asistente Lobby`.
-3. Usa el JSON manual o inicia sesion para buscar usuarios en Firebase.
-   Usa los botones de pagina para recorrer las coincidencias; cada pagina reemplaza los usuarios cargados en el panel.
+3. Inicia sesion y busca usuarios. Usa los botones de pagina para recorrer las
+   coincidencias; cada pagina reemplaza los usuarios cargados en el panel y exige
+   seleccionar nuevamente a la persona.
 4. Selecciona el solicitante y presiona `Rellenar formulario principal`.
 5. Selecciona el usuario para modal y presiona `Abrir y rellenar modal`.
 6. Usa `Minimizar` si necesitas recuperar espacio en pantalla.
 7. Revisa manualmente la informacion.
 8. Presiona `Guardar` o `Solicitar` manualmente solo si corresponde.
+
+Para pegar JSON o cargar ejemplos, abre `Carga manual avanzada (JSON)`. El panel
+inicia sin datos de ejemplo y los identifica cuando se cargan. Usa `Vaciar datos`
+para retirar los datos cargados, incluidos los ejemplos, antes de empezar de nuevo.
+
+Busca representados en su catalogo y elige por separado el del solicitante y el de
+cada asistente. El tipo de representacion se selecciona para cada persona. Se puede
+optar por completar manualmente o elegir explicitamente el representado antiguo del
+usuario. El portal conserva los datos anteriores hasta que se revise su migracion.
 
 ### Camara de Diputadas y Diputados
 
@@ -102,6 +115,23 @@ El acceso a los registros sigue requiriendo autorizacion individual en Firebase.
 
 Para representados de Camara, usa paises ISO-3 (`CHL`, `ARG`) y completa
 `identificacion: "codigo"` junto con `identificador` solo cuando no exista RUT.
+
+### Senado
+
+1. Abre `https://www.senado.cl/transparencia/lobby/audiencia` y selecciona manualmente la categoria y la autoridad.
+2. Abre el asistente en la pagina del Senado, fuera del formulario embebido, busca y selecciona al solicitante y presiona `Rellenar formulario principal`.
+3. Revisa los campos y avisos. Completa manualmente la comuna de reunion y el nombre de fantasia cuando corresponda.
+4. Agrega asistentes, adjunta documentos y envia manualmente solo despues de revisar.
+
+El adaptador identifica RUT chilenos mediante su digito verificador; si el pais o
+la identificacion no permiten distinguirlos, deja el campo para revision manual.
+Al ingresar un RUT espera la consulta del Senado y conserva los datos que el sitio
+recupere y bloquee, avisando cuando difieren de los datos del portal. Si la consulta
+no se confirma, no rellena los datos del solicitante que dependen de ella.
+El llenado de asistentes adicionales aun no esta implementado. El comportamiento
+de los campos dinamicos debe validarse en el sitio real.
+El panel se comunica con el iframe mediante mensajeria interna de la extension.
+Si el iframe no responde, recarga la pagina y vuelve a intentar.
 
 ## Autenticacion
 
@@ -142,4 +172,5 @@ Los usuarios `operator` tambien pueden entrar a `/admin.html`; veran una vista l
 - `src/page-bridge.js` accede a `window.SolicitudesAudienciaAdmin` y `window.item`.
 - `src/sites/leylobby/form-filler.js` contiene la logica especifica del formulario Ley Lobby.
 - `src/sites/camara/form-filler.js` contiene la logica del formulario de Camara.
+- `src/sites/senado/form-filler.js` contiene la logica del formulario embebido del Senado.
 - Para futuros formularios, agregar nuevos adaptadores bajo `src/sites/`.

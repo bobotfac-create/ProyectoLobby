@@ -1,0 +1,3 @@
+id,nombre,nombres,apellidos,tipo,pasaporte,identificacion,identificador,pais,actividades,giro,domicilio,region,comuna,representanteLegal,naturaleza,directorio,active
+mock_rep_empresa,PRUEBA - Empresa Ficticia,,,persona_juridica,77777777-7,,,CHL,Servicios ficticios,Consultoria,Calle Ejemplo 123,Metropolitana,Santiago,Ana Ejemplo,Sociedad por acciones,Directorio ficticio,true
+mock_rep_persona,PRUEBA - Persona Ficticia,Carolina,Ejemplo,persona_natural,,codigo,TEST-001,CHL,,,,Metropolitana,Providencia,,,,true

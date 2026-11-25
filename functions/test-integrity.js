@@ -14,6 +14,7 @@ function ref(collection, id) {
   const key = `${collection}/${id}`;
   return {
     key,
+    async get() { return snapshot(this); },
     async create(data) {
       if (records.has(key)) throw Object.assign(new Error("exists"), { code: 6 });
       records.set(key, data);
@@ -74,6 +75,36 @@ async function request(routeName, body, id, query = {}) {
 }
 
 async function main() {
+  let rep = await request("POST /api/representados", { id: "entidad1", nombre: "Entidad Ejemplo", tipo: "persona_juridica", ownerUid: "operator2" });
+  assert.equal(rep.statusCode, 201);
+  assert.equal(records.get("representados/entidad1").ownerUid, "operator1");
+  records.get("representados/entidad1").active = false;
+  assert.equal((await request("GET /api/representados/:id", null, "entidad1", { activeOnly: "true" })).statusCode, 404);
+  assert.equal((await request("GET /api/representados/:id", null, "entidad1")).statusCode, 200);
+  records.get("representados/entidad1").active = true;
+  records.set("representados/ajeno", { id: "ajeno", nombre: "Privado", tipo: "persona_natural", ownerUid: "operator2", active: true, searchText: "privado" });
+  rep = await request("GET /api/representados", null, null, { q: "entidad" });
+  assert.equal(rep.body.representados.length, 1);
+  assert.equal((await request("GET /api/representados/:id", null, "ajeno")).statusCode, 404);
+  assert.equal((await request("PATCH /api/representados/:id", { nombre: "Intento" }, "ajeno")).statusCode, 404);
+  assert.equal((await request("POST /api/representados/:id/disable", {}, "ajeno")).statusCode, 404);
+  assert.equal(records.get("representados/ajeno").nombre, "Privado");
+  records.set("lobbyUsers/legacy", { id: "legacy", ownerUid: "operator1", active: true, representado: { nombre: "Entidad Ejemplo", tipo: "persona_juridica" } });
+  records.set("lobbyUsers/legacy-malformed", { id: "legacy-malformed", ownerUid: "operator1", representado: "invalido" });
+  const preview = await request("GET /api/representados/migracion", null, null);
+  assert.equal(preview.body.complete, true);
+  assert.equal(preview.body.candidates.length, 1);
+  assert.equal(preview.body.candidates[0].entries.length, 2);
+  assert.equal(preview.body.unresolved[0].id, "legacy-malformed");
+  assert.equal(records.get("lobbyUsers/legacy").representado.nombre, "Entidad Ejemplo");
+  records.delete("lobbyUsers/legacy");
+  records.delete("lobbyUsers/legacy-malformed");
+  rep = await request("POST /api/representados/import", { representados: [{ id: "nuevo", nombre: "Nuevo", tipo: "persona_natural" }] });
+  assert.equal(rep.body.results[0].action, "create");
+  assert.equal(records.has("representados/nuevo"), false);
+  rep = await request("POST /api/representados/import", { dryRun: false, mode: "upsert", representados: [{ id: "ajeno", nombre: "Intento", tipo: "persona_natural" }] });
+  assert.equal(rep.body.results[0].action, "error");
+  assert.equal(records.get("representados/ajeno").nombre, "Privado");
   records.set("lobbyUsers/user1", { id: "user1", label: "Anterior", nombres: "Camila", active: false, ownerUid: "operator1", createdByUid: "original" });
   const imported = await request("POST /api/lobby-users/import", { users: [{ id: "user1", label: "Actual", createdByUid: "falso" }], dryRun: false });
   assert.equal(imported.body.summary.updated, 1);

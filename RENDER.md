@@ -42,24 +42,18 @@ esta variable reemplaza la lista web predeterminada. La API aun verifica token,
 rol y propiedad de cada registro. El endpoint `/api/health` solo comprueba que el
 proceso responde; no valida credenciales ni conectividad con Firebase.
 
-## 3. Configurar clientes con la URL real
+## 3. Configuracion de clientes para el piloto
 
-Tras crear el servicio, comprobar `https://NOMBRE.onrender.com/api/health`. Luego:
+El portal y la extension estan configurados localmente para
+`https://proyectolobby.onrender.com/api`, y los manifiestos autorizan solo ese
+dominio de Render. La version 0.1.2 necesita instalarse o publicarse como paquete
+nuevo; las versiones anteriores siguen llamando a la API antigua. Comprobar
+`https://proyectolobby.onrender.com/api/health` antes de probar la integracion.
 
-1. En `public/api-config.js`, reemplazar `/api` por la URL HTTPS de Render con
-   sufijo `/api`. El portal sigue alojado en Firebase Hosting.
-2. En `extension/src/api-config.js`, configurar la misma URL completa.
-3. Agregar `https://NOMBRE.onrender.com/*` a `host_permissions` de los tres
-   manifiestos de extension. Usar solo el dominio exacto del servicio, no un
-   comodin para todos los servicios de Render.
-4. Incrementar la version en los tres manifiestos, ejecutar las pruebas y generar
-   paquetes nuevos con `python3 extension/package.py --output <directorio-nuevo>`.
-   La extension publicada debe actualizarse; las versiones anteriores seguiran
-   llamando a la API antigua.
-5. Preparar Hosting con `public/api-config.js` y el portal actualizado. Antes de
-   publicar, configurar `public/extension-auth-redirects.js` con las URL de
-   retorno verificadas: su lista local vacia bloquea el login Google. El ID nuevo
-   de Firefox requiere obtener la URL desde la version firmada definitiva.
+Preparar Hosting con `public/api-config.js` y el portal actualizado. La lista en
+`public/extension-auth-redirects.js` incluye los destinos de la extension Chrome y
+la instalacion temporal de Firefox 0.1.2. Confirmar el destino de la version
+firmada de Firefox antes de distribuirla y probar ambos inicios de sesion.
 
 No desplegar Hosting, Functions ni reglas automaticamente. Coordinar la
 publicacion explicita con el administrador, tras verificar el servicio y el flujo

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Asistente Lobby",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Asistente de llenado para Ley Lobby con datos privados desde Firebase.",
   "permissions": ["storage", "identity"],
   "host_permissions": [
@@ -9,7 +9,10 @@
     "https://leylobby.gob.cl/*",
     "https://www.camara.cl/*",
     "https://camara.cl/*",
+    "https://lobby.senado.cl/*",
+    "https://www.senado.cl/*",
     "https://asistente-lobby.web.app/*",
+    "https://proyectolobby.onrender.com/*",
     "https://identitytoolkit.googleapis.com/*",
     "https://securetoken.googleapis.com/*"
   ],
@@ -32,9 +35,24 @@
         "src/content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://lobby.senado.cl/public_html/forms/masters-senado/audiencia.php*"],
+      "js": ["src/config.js", "src/shared/payload.js", "src/sites/senado/form-filler.js", "src/sites/senado/frame-bridge.js", "src/content.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.senado.cl/transparencia/lobby/audiencia*"],
+      "js": ["src/config.js", "src/shared/payload.js", "src/sites/senado/page-adapter.js", "src/content.js"],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
+    {
+      "resources": ["src/sites/senado/lookup-observer.js"],
+      "matches": ["https://lobby.senado.cl/*"]
+    },
     {
       "resources": ["src/page-bridge.js"],
       "matches": [

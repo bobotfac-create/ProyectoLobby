@@ -4,6 +4,10 @@ Backlog tecnico y funcional para evolucionar Asistente Lobby.
 
 ## Media prioridad
 
+- Validar el catalogo de representados y la seleccion independiente en los tres formularios con Firebase y navegadores reales; desplegar el indice Firestore correspondiente.
+- Revisar la simulacion y los posibles duplicados antes de preparar y autorizar cualquier migracion de representados antiguos.
+- Validar en Firefox y Chrome el panel exterior del Senado, su conexion al iframe, las consultas de RUT con persona existente y nueva, la seleccion de autoridad, los tres tipos de representado y la carga de regiones y comunas; evaluar el llenado de asistentes adicionales.
+- Validar visualmente el portal y sus flujos autenticados en escritorio, zoom y pantallas estrechas.
 - Comprobar el paquete actualizado con los validadores de Chrome y Firefox antes de publicarlo.
 - Revisar accesibilidad del panel:
   - foco visible,
@@ -17,7 +21,7 @@ Backlog tecnico y funcional para evolucionar Asistente Lobby.
 - Agregar reasignacion masiva de dueño para `lobbyUsers` si crece la base de datos.
 - Agregar opcion para que admin cree `lobbyUsers` directamente desde una solicitud o plantilla predefinida.
 - Agregar versionado formal de la extension.
-- Definir identidades finales y registrar las URL de autenticacion autorizadas antes de desplegar Hosting.
+- Confirmar la URL de autenticacion de la version firmada de Firefox y probar los accesos antes de distribuir.
 - Firmar y validar paquetes para Chrome y Firefox; documentar instalacion y actualizacion para usuarios no tecnicos.
 - Revisar la declaracion de datos de Firefox segun el tratamiento real y las politicas vigentes.
 
@@ -25,7 +29,7 @@ Backlog tecnico y funcional para evolucionar Asistente Lobby.
 
 - Agregar iconos reales para la extension.
 - Recordar preferencia de panel abierto/minimizado por pestaña o sesion.
-- Mejorar diseno visual del panel sin aumentar interferencia sobre el formulario.
+- Validar el panel actualizado sobre Ley Lobby y Camara, con teclado, zoom y pantallas estrechas.
 - Agregar opcion de limpiar sesion y datos temporales desde el panel.
 - Revisar si conviene mantener email/password o retirarlo cuando Google este estable.
 - Agregar historial visible de aprobaciones/rechazos por usuario.
@@ -33,6 +37,9 @@ Backlog tecnico y funcional para evolucionar Asistente Lobby.
 
 ## Implementado recientemente
 
+- Adaptador inicial del formulario de audiencia del Senado embebido en un iframe.
+- Extension: panel centrado en busqueda y llenado, sin cargar ejemplos automaticamente.
+- Portal: navegacion centrada en usuarios y aviso antes de descartar cambios del formulario.
 - Empaquetado reproducible por navegador y validacion de destinos exactos para autenticacion Google.
 - La extension admite el formulario de solicitud de audiencia de la Camara de
   Diputadas y Diputados mediante un adaptador propio.
@@ -52,13 +59,13 @@ Backlog tecnico y funcional para evolucionar Asistente Lobby.
 
 ## Riesgos a monitorear
 
-- Completar el piloto de Render siguiendo `RENDER.md`: credenciales, URL, permisos de extension, publicacion y pruebas reales.
+- Completar el piloto de Render siguiendo `RENDER.md`: publicacion del portal y extension y pruebas autenticadas reales.
 - Validar la actualizacion mayor de Firebase Admin y Functions con Authentication y Firestore en un entorno de pruebas antes de desplegar.
 - Revisar las alertas moderadas de dependencias de desarrollo de Firebase CLI cuando haya versiones compatibles corregidas.
 - El filtrado de texto recorre documentos en lotes; evaluar un indice de busqueda si crecen los costos o la latencia.
 - La auditoria es de mejor esfuerzo: una falla al escribir el log no cancela la operacion.
 - Validar consultas Firestore e integracion de transacciones en un entorno de pruebas.
-- La lista inicial de destinos de autenticacion esta vacia: desplegarla sin configuracion bloquearia el login Google de la extension.
+- Un cambio de identidad de la extension exige actualizar la lista de destinos de autenticacion antes de desplegar.
 - Cambios de DOM o JS interno de Ley Lobby pueden romper selectores o `window.SolicitudesAudienciaAdmin`.
 - Cambios de politicas de Chrome/Firefox pueden afectar `identity.launchWebAuthFlow`.
 - Usuarios autenticados con Google igualmente requieren documento valido en `appUsers`; si no existe, la API negara acceso.

@@ -27,6 +27,7 @@ No debe parecer una interfaz llamativa, agresiva o ludica. No debe usar patrones
 - Seguridad visible: tokens y datos sensibles se mantienen fuera de la pagina cuando sea posible.
 - Interferencia minima: el panel debe ayudar sin tapar innecesariamente el formulario.
 - Preparado para crecer: nuevos formularios deben agregarse como adaptadores, no como reescrituras.
+- Solicitantes y representados se gestionan por separado; la seleccion del representado es por persona y solicitud.
 
 ## Accessibility & Inclusion
 

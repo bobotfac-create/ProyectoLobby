@@ -12,6 +12,54 @@ if (typeof importScripts === "function") importScripts("api-config.js");
   var SECURE_TOKEN_URL = "https://securetoken.googleapis.com/v1/token";
   var memorySession = {};
   var firebaseApiKey = null;
+  var senadoFrames = new Map();
+
+  function isSenadoUrl(value, host, pathname) {
+    try {
+      var url = new URL(value);
+      return url.protocol === "https:" && url.hostname === host && url.pathname === pathname;
+    } catch (error) { return false; }
+  }
+
+  ext.runtime.onConnect.addListener(function (port) {
+    var sender = port.sender || {};
+    if (port.name !== "senado-formulario" || !sender.tab || !Number.isInteger(sender.tab.id) ||
+        !Number.isInteger(sender.frameId) || sender.frameId <= 0 ||
+        !isSenadoUrl(sender.url, "lobby.senado.cl", "/public_html/forms/masters-senado/audiencia.php")) return;
+    var tabId = sender.tab.id;
+    var frames = senadoFrames.get(tabId) || new Map();
+    frames.set(sender.frameId, port);
+    senadoFrames.set(tabId, frames);
+    port.onDisconnect.addListener(function () {
+      if (frames.get(sender.frameId) === port) frames.delete(sender.frameId);
+      if (!frames.size && senadoFrames.get(tabId) === frames) senadoFrames.delete(tabId);
+    });
+  });
+
+  function sendToFrame(tabId, frameId, message) {
+    if (typeof browser !== "undefined") return ext.tabs.sendMessage(tabId, message, { frameId: frameId });
+    return new Promise(function (resolve, reject) {
+      ext.tabs.sendMessage(tabId, message, { frameId: frameId }, function (response) {
+        if (ext.runtime.lastError) reject(new Error(ext.runtime.lastError.message));
+        else resolve(response);
+      });
+    });
+  }
+
+  async function sendToSenadoFrame(message, sender) {
+    if (!sender || !sender.tab || !Number.isInteger(sender.tab.id) || sender.frameId !== 0 ||
+        !isSenadoUrl(sender.url, "www.senado.cl", "/transparencia/lobby/audiencia")) {
+      throw new Error("La solicitud no proviene de la pagina de audiencia del Senado.");
+    }
+    var frames = senadoFrames.get(sender.tab.id);
+    if (!frames || frames.size !== 1) throw new Error("No se encontro un unico formulario del Senado. Espera su carga y vuelve a intentar.");
+    var frameId = frames.keys().next().value;
+    var response = await sendToFrame(sender.tab.id, frameId, {
+      type: "senado:fillFrame", data: message.data, requesterIndex: message.requesterIndex
+    });
+    if (!response || !response.ok) throw new Error(response && response.error || "El formulario del Senado no respondio.");
+    return response;
+  }
 
   function getStorageSessionArea() {
     if (!ext.storage) return null;
@@ -285,8 +333,10 @@ if (typeof importScripts === "function") importScripts("api-config.js");
     }
   }
 
-  async function handleMessage(message) {
+  async function handleMessage(message, sender) {
     var type = message && message.type;
+
+    if (type === "senado:fill") return sendToSenadoFrame(message, sender);
 
     if (type === "auth:getState") return authState();
 
@@ -321,11 +371,20 @@ if (typeof importScripts === "function") importScripts("api-config.js");
       return apiRequest("/lobby-users/" + encodeURIComponent(message.id));
     }
 
+    if (type === "api:searchRepresentados") {
+      return apiRequest("/representados?q=" + encodeURIComponent(message.query || "") +
+        (message.cursor ? "&cursor=" + encodeURIComponent(message.cursor) : ""));
+    }
+    if (type === "api:getRepresentado") {
+      if (!message.id) throw new Error("ID de representado requerido.");
+      return apiRequest("/representados/" + encodeURIComponent(message.id) + "?activeOnly=true");
+    }
+
     throw new Error("Mensaje no soportado: " + type);
   }
 
   ext.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-    handleMessage(message)
+    handleMessage(message, sender)
       .then(function (response) { sendResponse(response); })
       .catch(function (error) {
         sendResponse({ ok: false, error: error && error.message ? error.message : String(error) });

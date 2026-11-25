@@ -17,9 +17,13 @@ const state = {
   appUsers: [],
   importedUsers: [],
   editingId: null,
+  hasLegacyRepresentado: false,
   userPages: { cursors: [null], index: 0, next: null, params: "" }
 };
 let usersRequestId = 0;
+let savedForm = null;
+let savingForm = false;
+let formRequestId = 0;
 
 const els = {
   sessionLabel: document.querySelector("#sessionLabel"),
@@ -76,6 +80,8 @@ function applyRoleUi() {
   els.ownerFilterWrap.classList.toggle("hidden", !admin);
   els.ownerFieldWrap.classList.toggle("hidden", !admin);
   els.importOwnerWrap.classList.toggle("hidden", !admin);
+  document.querySelector("#representedOwnerWrap").classList.toggle("hidden", !admin);
+  document.querySelector("#representedMigration").classList.toggle("hidden", !admin);
   els.usersTitle.textContent = admin ? "Usuarios" : "Mis usuarios";
 }
 
@@ -140,6 +146,7 @@ function populateOwnerControls() {
   setOptions(els.ownerFilter, state.appUsers, true);
   setOptions(els.userForm.elements.namedItem("ownerUid"), activeUsers, false);
   setOptions(els.importOwnerUid, activeUsers, false);
+  setOptions(document.querySelector('#representedForm [name="ownerUid"]'), activeUsers, false);
 }
 
 function cleanValue(value) {
@@ -232,6 +239,7 @@ async function api(path, options = {}) {
 function showTab(name) {
   els.tabButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.tabTarget === name);
+    button.setAttribute("aria-pressed", String(button.dataset.tabTarget === name));
   });
 
   els.tabPanels.forEach((panel) => {
@@ -239,10 +247,25 @@ function showTab(name) {
   });
 }
 
+function formSnapshot() {
+  return JSON.stringify(Array.from(new FormData(els.userForm).entries()));
+}
+
+function confirmDiscard() {
+  if (savingForm) return false;
+  return savedForm === null || formSnapshot() === savedForm ||
+    window.confirm("Hay cambios sin guardar. ¿Deseas descartarlos?");
+}
+
+function focusUserForm() {
+  els.formTitle.scrollIntoView({ block: "start" });
+  els.formTitle.focus({ preventScroll: true });
+}
+
 function userFromForm() {
   const form = new FormData(els.userForm);
-  const representado = objectFromPrefix(form, "representado");
-  if (representado.pais) representado.pais = representado.pais.toUpperCase();
+  const representado = state.hasLegacyRepresentado ? objectFromPrefix(form, "representado") : undefined;
+  if (representado && representado.pais) representado.pais = representado.pais.toUpperCase();
   return cleanUser({
     id: formValue("id"),
     label: formValue("label"),
@@ -304,8 +327,11 @@ function validateUserForm(user) {
 }
 
 function fillForm(user) {
+  formRequestId += 1;
   const fields = els.userForm.elements;
   state.editingId = user ? user.id : null;
+  state.hasLegacyRepresentado = Boolean(user && user.representado && Object.keys(user.representado).length);
+  document.querySelector('[data-tab-target="representado"]').classList.toggle("hidden", !state.hasLegacyRepresentado);
   els.formTitle.textContent = user ? `Editando ${user.id}` : "Nuevo usuario";
   fields.id.readOnly = Boolean(user);
   setFormValue("id", user && user.id ? user.id : "");
@@ -339,6 +365,7 @@ function fillForm(user) {
 
   showTab("personal");
   setStatus(els.formStatus, "");
+  savedForm = formSnapshot();
 }
 
 function renderUsers(users) {
@@ -400,10 +427,15 @@ async function loadUsers(direction) {
 }
 
 async function editUser(id) {
+  if (!confirmDiscard()) return;
+  const requestId = ++formRequestId;
+  const snapshot = formSnapshot();
   setStatus(els.formStatus, "Cargando usuario...");
   const response = await api(`/lobby-users/${encodeURIComponent(id)}`);
+  if (requestId !== formRequestId || savingForm) return;
+  if (formSnapshot() !== snapshot && !confirmDiscard()) return;
   fillForm(response.user);
-  window.scrollTo({ top: els.userForm.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
+  focusUserForm();
   setStatus(els.formStatus, "Usuario cargado para edicion.", "ok");
 }
 
@@ -688,7 +720,8 @@ async function loadImportFile() {
   const errors = validateImportedUsers(users);
   state.importedUsers = users;
   renderImportPreview(users, errors);
-  setStatus(els.importStatus, `Archivo cargado: ${users.length} usuario(s).`, errors.length ? "error" : "ok");
+  const legacy = users.some((user) => user.representado && Object.keys(user.representado).length);
+  setStatus(els.importStatus, `Archivo cargado: ${users.length} usuario(s).` + (legacy ? " Contiene representados antiguos: permaneceran en el solicitante; revisalos para incorporarlos al catalogo separado." : ""), errors.length ? "error" : "ok");
 }
 
 async function submitImport(dryRun) {
@@ -755,8 +788,14 @@ els.ownerFilter.addEventListener("change", () => {
   loadUsers().catch((error) => setStatus(els.listStatus, error.message, "error"));
 });
 
-els.newButton.addEventListener("click", () => fillForm(null));
-els.resetFormButton.addEventListener("click", () => fillForm(null));
+els.newButton.addEventListener("click", () => {
+  if (!confirmDiscard()) return;
+  fillForm(null);
+  focusUserForm();
+});
+els.resetFormButton.addEventListener("click", () => {
+  if (confirmDiscard()) fillForm(null);
+});
 
 els.tabButtons.forEach((button) => {
   button.addEventListener("click", () => showTab(button.dataset.tabTarget));
@@ -775,26 +814,44 @@ els.usersTableBody.addEventListener("click", (event) => {
 
 els.userForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (savingForm) return;
+  savingForm = true;
+  const submitButton = els.userForm.querySelector('[type="submit"]');
+  submitButton.disabled = true;
   try {
     const user = userFromForm();
     validateUserForm(user);
+    const submittedForm = formSnapshot();
+    const wasEditing = Boolean(state.editingId);
     if (state.editingId) {
       await api(`/lobby-users/${encodeURIComponent(state.editingId)}`, {
         method: "PATCH",
         body: JSON.stringify(user)
       });
-      setStatus(els.formStatus, "Usuario actualizado.", "ok");
     } else {
       await api("/lobby-users", {
         method: "POST",
         body: JSON.stringify(user)
       });
-      setStatus(els.formStatus, "Usuario creado.", "ok");
-      fillForm(null);
     }
-    await loadUsers();
+    if (formSnapshot() === submittedForm) {
+      if (wasEditing) savedForm = submittedForm;
+      else fillForm(null);
+    } else {
+      savedForm = submittedForm;
+      if (!wasEditing) {
+        state.editingId = user.id;
+        els.userForm.elements.id.readOnly = true;
+        els.formTitle.textContent = `Editando ${user.id}`;
+      }
+    }
+    setStatus(els.formStatus, wasEditing ? "Usuario actualizado." : "Usuario creado.", "ok");
+    await loadUsers().catch((error) => setStatus(els.listStatus, error.message, "error"));
   } catch (error) {
     setStatus(els.formStatus, error.message, "error");
+  } finally {
+    savingForm = false;
+    submitButton.disabled = false;
   }
 });
 
@@ -852,6 +909,142 @@ els.appUsersTableBody.addEventListener("click", (event) => {
   }
 });
 
+// El catalogo usa los mismos campos de representado que el formulario legado.
+const representedForm = document.querySelector("#representedForm");
+const representedFields = document.querySelector('[data-tab-panel="representado"]').cloneNode(true);
+representedFields.className = "grid";
+representedFields.removeAttribute("data-tab-panel");
+representedFields.querySelector("p").remove();
+representedFields.querySelector('[name="representado.tipoRepresentacion"]').closest("label").remove();
+representedFields.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+representedFields.querySelectorAll("[aria-describedby]").forEach((node) => node.removeAttribute("aria-describedby"));
+representedFields.querySelectorAll("[name]").forEach((node) => { node.name = node.name.replace(/^representado\./, ""); });
+representedFields.querySelector('[name="nombre"]').required = true;
+representedFields.querySelector('[name="tipo"]').required = true;
+document.querySelector("#representedFields").appendChild(representedFields);
+const rep = {
+  form: representedForm, title: document.querySelector("#representedFormTitle"),
+  table: document.querySelector("#representedTable"), search: document.querySelector("#representedSearch"),
+  listStatus: document.querySelector("#representedListStatus"), formStatus: document.querySelector("#representedFormStatus"),
+  previous: document.querySelector("#representedPrevious"), next: document.querySelector("#representedNext"),
+  file: document.querySelector("#representedFile"), importStatus: document.querySelector("#representedImportStatus"),
+  editingId: null, baseline: null, saving: false, requestId: 0, pages: { cursors: [null], index: 0, next: null, query: "" }
+};
+function repSnapshot() { return JSON.stringify(Array.from(new FormData(rep.form).entries())); }
+function repDiscard() { return !rep.saving && (rep.baseline === null || rep.baseline === repSnapshot() || window.confirm("Hay cambios de representado sin guardar. ¿Deseas descartarlos?")); }
+function resetRepresentado(data) {
+  rep.requestId++;
+  rep.form.reset();
+  rep.editingId = data ? data.id : null;
+  Array.from(rep.form.elements).forEach((field) => {
+    if (field.name && data && Object.prototype.hasOwnProperty.call(data, field.name)) field.value = String(data[field.name]);
+  });
+  rep.form.elements.id.readOnly = Boolean(data);
+  rep.title.textContent = data ? `Editando representado ${data.id}` : "Nuevo representado";
+  rep.baseline = repSnapshot();
+  setStatus(rep.formStatus, "");
+}
+async function loadRepresentados(direction) {
+  const requestId = ++rep.requestId;
+  const cursors = direction ? rep.pages.cursors.slice() : [null];
+  const index = direction === "next" ? rep.pages.index + 1 : direction === "previous" ? rep.pages.index - 1 : 0;
+  const q = direction ? rep.pages.query : rep.search.value.trim();
+  if (direction === "next") cursors[index] = rep.pages.next;
+  const params = new URLSearchParams({ q, includeInactive: "true" });
+  if (cursors[index]) params.set("cursor", cursors[index]);
+  setStatus(rep.listStatus, "Cargando representados...");
+  const response = await api(`/representados?${params}`);
+  if (requestId !== rep.requestId) return;
+  rep.pages = { cursors: cursors.slice(0, index + 1), index, next: response.nextCursor || null, query: q };
+  rep.previous.disabled = index === 0;
+  rep.next.disabled = !rep.pages.next;
+  rep.table.innerHTML = (response.representados || []).map((item) => `<tr><td>${escapeHtml(item.id)}</td><td>${escapeHtml(item.nombre)}</td><td>${escapeHtml(item.tipo)}</td><td>${escapeHtml(ownerLabel(item.ownerUid, item.ownerEmail))}</td><td>${item.active ? "Activo" : "Inactivo"}</td><td class="actions"><button type="button" class="secondary" data-rep-action="edit" data-id="${escapeHtml(item.id)}">Editar</button>${item.active ? `<button type="button" class="danger" data-rep-action="disable" data-id="${escapeHtml(item.id)}">Desactivar</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="6">Sin representados</td></tr>';
+  setStatus(rep.listStatus, `Pagina ${index + 1}: ${(response.representados || []).length} representados.`);
+}
+document.querySelector("#representedSearchButton").addEventListener("click", () => loadRepresentados().catch((error) => setStatus(rep.listStatus, error.message, "error")));
+rep.previous.addEventListener("click", () => loadRepresentados("previous").catch((error) => setStatus(rep.listStatus, error.message, "error")));
+rep.next.addEventListener("click", () => loadRepresentados("next").catch((error) => setStatus(rep.listStatus, error.message, "error")));
+function newRepresentado() { if (repDiscard()) { resetRepresentado(null); rep.title.focus(); rep.title.scrollIntoView({ block: "start" }); } }
+document.querySelector("#representedNew").addEventListener("click", newRepresentado);
+document.querySelector("#representedReset").addEventListener("click", newRepresentado);
+rep.table.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-rep-action]");
+  if (!button) return;
+  try {
+    if (button.dataset.repAction === "edit") {
+      if (!repDiscard()) return;
+      const snapshot = repSnapshot();
+      const requestId = ++rep.requestId;
+      const response = await api(`/representados/${encodeURIComponent(button.dataset.id)}`);
+      if (requestId !== rep.requestId || rep.saving || (repSnapshot() !== snapshot && !repDiscard())) return;
+      resetRepresentado(response.representado);
+      rep.title.focus(); rep.title.scrollIntoView({ block: "start" });
+    } else if (window.confirm(`¿Desactivar ${button.dataset.id}?`)) {
+      await api(`/representados/${encodeURIComponent(button.dataset.id)}/disable`, { method: "POST" });
+      await loadRepresentados();
+    }
+  } catch (error) { setStatus(rep.listStatus, error.message, "error"); }
+});
+rep.form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (rep.saving) return;
+  rep.saving = true;
+  const submit = rep.form.querySelector('[type="submit"]'); submit.disabled = true;
+  const submitted = repSnapshot();
+  const data = Object.fromEntries(new FormData(rep.form).entries());
+  if (!isAdminRole()) delete data.ownerUid;
+  data.active = data.active === "true";
+  const editing = rep.editingId;
+  try {
+    await api(editing ? `/representados/${encodeURIComponent(editing)}` : "/representados", { method: editing ? "PATCH" : "POST", body: JSON.stringify(data) });
+    if (repSnapshot() === submitted) { if (editing) rep.baseline = submitted; else resetRepresentado(null); }
+    else { rep.baseline = submitted; if (!editing) { rep.editingId = data.id; rep.form.elements.id.readOnly = true; rep.title.textContent = `Editando representado ${data.id}`; } }
+    setStatus(rep.formStatus, editing ? "Representado actualizado." : "Representado creado.", "ok");
+    await loadRepresentados().catch((error) => setStatus(rep.listStatus, error.message, "error"));
+  } catch (error) { setStatus(rep.formStatus, error.message, "error"); }
+  finally { rep.saving = false; submit.disabled = false; }
+});
+async function importRepresentados(dryRun) {
+  const file = rep.file.files[0];
+  if (!file) throw new Error("Selecciona un archivo CSV o JSON.");
+  const text = await file.text();
+  let items;
+  if (file.name.toLowerCase().endsWith(".json")) {
+    const parsed = JSON.parse(text); items = Array.isArray(parsed) ? parsed : parsed.representados;
+  } else {
+    const rows = parseCsv(text.replace(/^\uFEFF/, ""));
+    const headers = (rows.shift() || []).map((value) => value.trim());
+    items = rows.map((row) => {
+      const item = {};
+      headers.forEach((header, index) => {
+        const value = parseCellValue(row[index], header);
+        if (header && value !== "") item[header] = value;
+      });
+      return item;
+    });
+  }
+  if (!Array.isArray(items) || !items.length) throw new Error("El archivo no contiene representados.");
+  const response = await api("/representados/import", { method: "POST", body: JSON.stringify({ representados: items, dryRun, mode: document.querySelector("#representedImportMode").value, ownerUid: isAdminRole() ? rep.form.elements.ownerUid.value : "" }) });
+  const counts = response.results.reduce((acc, result) => { acc[result.action] = (acc[result.action] || 0) + 1; return acc; }, {});
+  const errors = response.results.filter((result) => result.action === "error").map((result) => `Fila ${result.index + 1}: ${result.error}`).join("; ");
+  setStatus(rep.importStatus, `${dryRun ? "Validacion" : "Importacion"}: ${counts.create || 0} crear, ${counts.update || 0} actualizar, ${counts.skip || 0} omitidos, ${counts.error || 0} errores.${errors ? " " + errors : ""}`, counts.error ? "error" : "ok");
+  if (!dryRun) await loadRepresentados();
+}
+document.querySelector("#representedValidate").addEventListener("click", () => importRepresentados(true).catch((error) => setStatus(rep.importStatus, error.message, "error")));
+document.querySelector("#representedImport").addEventListener("click", () => importRepresentados(false).catch((error) => setStatus(rep.importStatus, error.message, "error")));
+document.querySelector("#representedMigrationPreview").addEventListener("click", async (event) => {
+  const status = document.querySelector("#representedMigrationStatus");
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const result = await api("/representados/migracion");
+    status.textContent = `${result.complete ? "Revision completa" : "Revision parcial: hay mas registros"}. Grupos: ${result.candidates.length}. Datos incompletos: ${result.unresolved.length}. No se escribieron datos.\n\n` +
+      result.candidates.map((item) => `${item.nombre} | ${item.documento || "sin documento"} | dueño: ${item.ownerUid}\n${item.entries.map((entry) => `  ${entry.source}: ${entry.id} (${entry.nombre}, ${entry.tipo})`).join("\n")}`).join("\n") +
+      (result.unresolved.length ? "\n\nRequieren revision:\n" + result.unresolved.map((item) => `${item.source} ${item.id}: ${item.reason}`).join("\n") : "");
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; }
+});
+
 onAuthStateChanged(auth, async (user) => {
   state.currentUser = user;
   els.loginButton.classList.toggle("hidden", Boolean(user));
@@ -886,6 +1079,8 @@ onAuthStateChanged(auth, async (user) => {
     }
     fillForm(null);
     await loadUsers();
+    resetRepresentado(null);
+    await loadRepresentados().catch((error) => setStatus(rep.listStatus, error.message, "error"));
   } catch (error) {
     els.adminApp.classList.add("hidden");
     els.sessionDetail.textContent = error.message;

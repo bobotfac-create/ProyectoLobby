@@ -1,0 +1,20 @@
+{
+  "representados": [
+    {
+      "id": "mock_rep_json_empresa",
+      "nombre": "PRUEBA - Empresa Ficticia JSON",
+      "tipo": "persona_juridica",
+      "pasaporte": "77777777-7",
+      "pais": "CHL",
+      "actividades": "Servicios ficticios",
+      "giro": "Consultoria",
+      "domicilio": "Calle Ejemplo 123",
+      "region": "Metropolitana",
+      "comuna": "Santiago",
+      "representanteLegal": "Ana Ejemplo",
+      "naturaleza": "Sociedad por acciones",
+      "directorio": "Directorio ficticio",
+      "active": true
+    }
+  ]
+}

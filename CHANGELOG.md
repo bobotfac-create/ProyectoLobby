@@ -6,6 +6,50 @@ Formato: `YYYY-MM-DD HH:mm CLT`.
 
 ## [Sin versionar]
 
+### 2026-11-25 - Catalogo independiente de representados
+
+- Nuevo catalogo por dueño con gestion, busqueda, importacion y simulacion de migracion sin escrituras.
+- La extension permite seleccionar representados por solicitante o asistente; los datos antiguos requieren seleccion explicita.
+- Se conservan los representados anidados existentes y los archivos de importacion anteriores.
+
+### 2026-11-25 - Datos de personas existentes en Senado
+
+- El adaptador espera la consulta de RUT del Senado, conserva los campos bloqueados por el sitio y avisa de diferencias con el portal.
+- Si no se confirma la consulta, el llenado dependiente se detiene para revision manual.
+
+### 2026-11-25 - Panel del Senado fuera del iframe
+
+- El panel se muestra en la pagina principal y comunica el llenado al iframe mediante el background de la extension.
+
+### 2026-11-25 - Visibilidad del asistente en Senado
+
+- El boton del asistente aparece en la parte superior del iframe para facilitar encontrarlo en el formulario embebido.
+
+### 2026-11-25 - Formulario del Senado
+
+- La extension carga en el iframe de audiencia del Senado y rellena datos disponibles tras la seleccion manual de autoridad.
+- Se admiten los tres tipos de representado con comprobaciones para campos y listas dinamicas; los asistentes adicionales se gestionan manualmente.
+- La integracion requiere validacion en el sitio real y sus estados dinamicos.
+
+### 2026-11-25 - Panel de la extension
+
+- Se priorizan busqueda, seleccion, llenado y revision; JSON y ejemplos quedan en carga manual avanzada.
+- El panel inicia sin datos de ejemplo, exige seleccionar personas y protege las ediciones manuales durante busquedas.
+
+### 2026-11-25 - Navegacion del portal
+
+- El listado de usuarios queda primero; accesos e importacion se agrupan en secciones desplegables.
+- El formulario avisa antes de descartar cambios, enfoca la edicion y conserva la confirmacion de guardado.
+
+### 2026-11-25 - Destinos del piloto
+
+- Se autorizan los destinos de autenticacion de Chrome y de la instalacion temporal de Firefox 0.1.2.
+
+### 2026-11-25 - Conexion del piloto con Render
+
+- El portal y la extension version 0.1.2 usan `https://proyectolobby.onrender.com/api`.
+- Los manifiestos permiten el dominio exacto de Render; el login sigue usando Firebase Hosting.
+
 ### 2026-11-24 - Preparacion de API para Render
 
 - La API Express admite ejecucion independiente en Render con credenciales Firebase de servidor configuradas en una variable secreta.
